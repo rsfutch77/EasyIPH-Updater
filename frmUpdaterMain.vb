@@ -1040,7 +1040,7 @@ Public Class frmUpdaterMain
 
                     ' See if they have the new or old format for owned bps
                     On Error Resume Next
-                    SQL = "SELECT ADDITIONAL_COSTS FROM OWNED_BLUEPRINTS"
+                    SQL = "SELECT OWNED_TYPE FROM OWNED_BLUEPRINTS"
                     DBCommand = New SQLiteCommand(SQL, DBOLD)
                     readerCheck = DBCommand.ExecuteReader
                     ' If it didn't error
@@ -1073,7 +1073,8 @@ Public Class frmUpdaterMain
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14))
+                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
+                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15))
                             SQL = SQL & ")"
 
                             DBCommand = New SQLiteCommand(SQL, DBNEW)
