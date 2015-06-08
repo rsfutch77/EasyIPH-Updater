@@ -1073,8 +1073,7 @@ Public Class frmUpdaterMain
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15))
+                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) 
                             SQL = SQL & ")"
 
                             DBCommand = New SQLiteCommand(SQL, DBNEW)
