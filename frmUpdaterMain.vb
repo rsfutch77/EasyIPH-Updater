@@ -189,10 +189,17 @@ Public Class frmUpdaterMain
         Dim HaveNewItemPricesFields As Boolean = False
         Dim HaveNewOwnedBPTable As Boolean = False
 
+        'Create a variable tracking times
+        Dim Timer As New Stopwatch
+        Dim Timer2 As New Stopwatch
+        Dim Count As Long = 0
+        Dim Counter As Long = 0
+
         '================================================
         On Error GoTo 0
 
         Application.UseWaitCursor = True
+        Timer2.Start()
 
         ' Sets the CurrentCulture 
         Thread.CurrentThread.CurrentCulture = LocalCulture
@@ -403,9 +410,12 @@ Public Class frmUpdaterMain
                     DBNEW.Open()
 
                     Call ExecuteNonQuerySQL("PRAGMA synchronous = NORMAL", DBOLD)
-                    Call ExecuteNonQuerySQL("PRAGMA synchronous = NORMAL", DBNEW)
+                    'Call ExecuteNonQuerySQL("PRAGMA synchronous = NORMAL", DBNEW)
+                    Call ExecuteNonQuerySQL("PRAGMA synchronous = OFF; PRAGMA locking_mode = EXCLUSIVE; PRAGMA cache_size = 10000; PRAGMA page_size = 4096; PRAGMA temp_store = MEMORY; PRAGMA journal_mode = OFF; PRAGMA count_changes = OFF", DBNEW)
+                    Call ExecuteNonQuerySQL("PRAGMA auto_vacuum = FULL;", DBNEW) ' Keep the DB small
 
                     ' API
+                    Timer.Start()
                     ProgramErrorLocation = "Cannot copy Character API"
 
                     ' See if they have the facility and blueprint cache field values first
@@ -520,7 +530,12 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
+                    Timer.Stop()
+                    Debug.Print("API " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
+
                     ' ASSETS
+                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy Assets"
                     SQL = "SELECT * FROM ASSETS"
@@ -556,7 +571,12 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
+                    Timer.Stop()
+                    Debug.Print("Assets " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
+
                     ' ASSET_LOCATIONS
+                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy Asset Locations"
                     SQL = "SELECT * FROM ASSET_LOCATIONS"
@@ -588,7 +608,12 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
+                    Timer.Stop()
+                    Debug.Print("asset locations " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
+
                     ' CHARACTER_SKILLS
+                    Timer.Start()
                     ProgramErrorLocation = "Cannot copy Character Skills"
                     SQL = "SELECT * FROM CHARACTER_SKILLS"
                     DBCommand = New SQLiteCommand(SQL, DBOLD)
@@ -616,7 +641,12 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
+                    Timer.Stop()
+                    Debug.Print("skills " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
+
                     ' CHARACTER_STANDINGS
+                    Timer.Start()
                     ProgramErrorLocation = "Cannot copy Character Standings"
                     SQL = "SELECT * FROM CHARACTER_STANDINGS"
                     DBCommand = New SQLiteCommand(SQL, DBOLD)
@@ -642,7 +672,12 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
+                    Timer.Stop()
+                    Debug.Print("Standings " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
+
                     ' CURRENT_RESEARCH_AGENTS
+                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy CURRENT_RESEARCH_AGENTS Data table"
                     SQL = "SELECT * FROM CURRENT_RESEARCH_AGENTS"
@@ -675,8 +710,12 @@ Public Class frmUpdaterMain
 
                     readerUpdate = Nothing
                     DBCommand = Nothing
+                    Timer.Stop()
+                    Debug.Print("Agents " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
 
                     ' EMD_ITEM_PRICE_HISTORY
+                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy EMD Price History"
                     SQL = "SELECT * FROM EMD_ITEM_PRICE_HISTORY"
@@ -713,7 +752,12 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
+                    Timer.Stop()
+                    Debug.Print("emd price history " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
+
                     ' EMD_UPDATE_HISTORY
+                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy EMD Update History"
                     SQL = "SELECT * FROM EMD_UPDATE_HISTORY"
@@ -745,7 +789,12 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
+                    Timer.Stop()
+                    Debug.Print("emd update history " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
+
                     ' CREST_CACHE_DATES
+                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy CREST_CACHE_DATES table"
 
@@ -791,8 +840,12 @@ Public Class frmUpdaterMain
                     End If
 
                     Call CommitSQLiteTransaction(DBNEW)
+                    Timer.Stop()
+                    Debug.Print("crest cache dates " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
 
                     ' INDUSTRY_JOBS
+                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy Industry Jobs"
                     SQL = "SELECT * FROM INDUSTRY_JOBS"
@@ -870,7 +923,12 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
+                    Timer.Stop()
+                    Debug.Print("industry jobs " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
+
                     ' ITEM_PRICES - includes CREST Market Prices updates
+                    Timer.Start()
                     ProgramErrorLocation = "Cannot copy Item Prices"
                     ' See if they have the new or old format for item prices
                     On Error Resume Next
@@ -914,7 +972,12 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
+                    Timer.Stop()
+                    Debug.Print("item prices " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
+
                     ' ITEM_PRICES_CACHE
+                    Timer.Start()
                     ' See if they have the percentile values first
                     ProgramErrorLocation = "Cannot copy Item Price Cache"
 
@@ -1032,62 +1095,56 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
+                    Timer.Stop()
+                    Debug.Print("Item prices cache " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
+
                     ' OWNED_BLUEPRINTS
+                    Timer.Start()
                     ProgramErrorLocation = "Cannot copy Owned Blueprints"
                     SQL = "SELECT * FROM OWNED_BLUEPRINTS"
                     DBCommand = New SQLiteCommand(SQL, DBOLD)
                     readerUpdate = DBCommand.ExecuteReader
 
-                    ' See if they have the new or old format for owned bps
-                    On Error Resume Next
-                    SQL = "SELECT OWNED_TYPE FROM OWNED_BLUEPRINTS"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerCheck = DBCommand.ExecuteReader
-                    ' If it didn't error
-                    If Err.Number = 0 Then
-                        HaveNewOwnedBPTable = True
-                        readerCheck.Close()
-                    Else
-                        HaveNewOwnedBPTable = False
-                    End If
-                    On Error GoTo 0
-
                     readerCheck = Nothing
 
-                    ' If they have the new table, copy, else just leave blank because they'll have to update everything new again anyway
-                    If HaveNewOwnedBPTable Then
-                        Call BeginSQLiteTransaction(DBNEW)
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO OWNED_BLUEPRINTS VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                            SQL = SQL & BuildInsertFieldString(CInt(readerUpdate.Item(7))) & ","
-                            SQL = SQL & BuildInsertFieldString(CInt(readerUpdate.Item(8))) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) 
-                            SQL = SQL & ")"
+                    ' Copy all data over
+                    Call BeginSQLiteTransaction(DBNEW)
+                    While readerUpdate.Read
+                        SQL = "INSERT INTO OWNED_BLUEPRINTS VALUES ("
+                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                        SQL = SQL & BuildInsertFieldString(CInt(readerUpdate.Item(7))) & ","
+                        SQL = SQL & BuildInsertFieldString(CInt(readerUpdate.Item(8))) & ","
+                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
+                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
+                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
+                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
+                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
+                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14))
+                        SQL = SQL & ")"
 
-                            DBCommand = New SQLiteCommand(SQL, DBNEW)
-                            DBCommand.ExecuteNonQuery()
-                            DBCommand = Nothing
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-                        readerUpdate.Close()
-                        readerUpdate = Nothing
+                        DBCommand = New SQLiteCommand(SQL, DBNEW)
+                        DBCommand.ExecuteNonQuery()
                         DBCommand = Nothing
-                    End If
+                    End While
+
+                    Call CommitSQLiteTransaction(DBNEW)
+                    readerUpdate.Close()
+                    readerUpdate = Nothing
+                    DBCommand = Nothing
+
+                    Timer.Stop()
+                    Debug.Print("owned blueprints " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
 
                     ' STATIONS
+                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy STATIONS Data table"
                     SQL = "SELECT * FROM STATIONS"
@@ -1125,9 +1182,14 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
+                    Timer.Stop()
+                    Debug.Print("stations " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
+
                     ' NEW CREST TABLES
 
                     ' INDUSTRY_CATEGORY_SPECIALTIES
+                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy INDUSTRY_CATEGORY_SPECIALTIES Data table"
                     SQL = "SELECT * FROM INDUSTRY_CATEGORY_SPECIALTIES"
@@ -1161,7 +1223,12 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
+                    Timer.Stop()
+                    Debug.Print("industry categories " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
+
                     ' INDUSTRY_FACILITIES
+                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy INDUSTRY_FACILITIES Data table"
                     SQL = "SELECT * FROM INDUSTRY_FACILITIES"
@@ -1200,7 +1267,12 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
+                    Timer.Stop()
+                    Debug.Print("industry facilities " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
+
                     ' INDUSTRY_GROUP_SPECIALTIES
+                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy INDUSTRY_GROUP_SPECIALTIES Data table"
                     SQL = "SELECT * FROM INDUSTRY_GROUP_SPECIALTIES"
@@ -1235,7 +1307,12 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
+                    Timer.Stop()
+                    Debug.Print("industry group specialties " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
+
                     ' INDUSTRY_SYSTEMS_COST_INDICIES
+                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy INDUSTRY_SYSTEMS_COST_INDICIES Data table"
                     SQL = "SELECT * FROM INDUSTRY_SYSTEMS_COST_INDICIES"
@@ -1272,7 +1349,12 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
+                    Timer.Stop()
+                    Debug.Print("Industry System Indicies " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
+
                     ' INDUSTRY_TEAMS
+                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS Data table"
                     SQL = "SELECT * FROM INDUSTRY_TEAMS"
@@ -1313,7 +1395,12 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
+                    Timer.Stop()
+                    Debug.Print("industry teams " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
+
                     ' INDUSTRY_TEAMS_AUCTIONS
+                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS_AUCTIONS Data table"
                     SQL = "SELECT * FROM INDUSTRY_TEAMS_AUCTIONS"
@@ -1355,10 +1442,15 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    ' INDUSTRY_TEAMS_AUCTION_BIDS
+                    Timer.Stop()
+                    Debug.Print("Industry Team auctions " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
+
+                    ' INDUSTRY_TEAMS_AUCTIONS_BIDS
+                    Timer.Start()
                     On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS_AUCTION_BIDS Data table"
-                    SQL = "SELECT * FROM INDUSTRY_TEAMS_AUCTION_BIDS"
+                    ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS_AUCTIONS_BIDS Data table"
+                    SQL = "SELECT * FROM INDUSTRY_TEAMS_AUCTIONS_BIDS"
                     DBCommand = New SQLiteCommand(SQL, DBOLD)
                     readerUpdate = DBCommand.ExecuteReader
                     On Error GoTo 0
@@ -1368,11 +1460,11 @@ Public Class frmUpdaterMain
                         Call BeginSQLiteTransaction(DBNEW)
 
                         ' Delete all the station records first, then reload
-                        SQL = "DELETE FROM INDUSTRY_TEAMS_AUCTION_BIDS"
+                        SQL = "DELETE FROM INDUSTRY_TEAMS_AUCTIONS_BIDS"
                         Call ExecuteNonQuerySQL(SQL, DBNEW)
 
                         While readerUpdate.Read
-                            SQL = "INSERT INTO INDUSTRY_TEAMS_AUCTION_BIDS VALUES ("
+                            SQL = "INSERT INTO INDUSTRY_TEAMS_AUCTIONS_BIDS VALUES ("
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
@@ -1397,49 +1489,12 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    ' INDUSTRY_TEAMS_AUCTION_BIDS
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS_AUCTION_BIDS Data table"
-                    SQL = "SELECT * FROM INDUSTRY_TEAMS_AUCTION_BIDS"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        ' Delete all the station records first, then reload
-                        SQL = "DELETE FROM INDUSTRY_TEAMS_AUCTION_BIDS"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO INDUSTRY_TEAMS_AUCTION_BIDS VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
+                    Timer.Stop()
+                    Debug.Print("industry team auction bids " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
 
                     ' INDUSTRY_TEAMS_BONUSES
+                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS_BONUSES Data table"
                     SQL = "SELECT * FROM INDUSTRY_TEAMS_BONUSES"
@@ -1477,14 +1532,12 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    ' STATION_FACILITIES
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy STATION_FACILITIES Data table"
-                    SQL = "SELECT * FROM STATION_FACILITIES"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
+                    Timer.Stop()
+                    Debug.Print("industry team bonuses " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
 
+                    ' STATION_FACILITIES
+                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy STATION_FACILITIES Data table"
                     SQL = "SELECT MATERIAL_MULTIPLIER FROM STATION_FACILITIES"
@@ -1499,177 +1552,97 @@ Public Class frmUpdaterMain
                     Else
                         Have6ModifierFields = True
                     End If
-
                     readerCheck2.Close()
-                    readerCheck2 = Nothing
+
+                    On Error Resume Next
+                    ProgramErrorLocation = "Cannot copy STATION_FACILITIES Data table"
+
+                    SQL = " SELECT COUNT(*) FROM (SELECT DISTINCT FACILITY_ID, FACILITY_NAME, SOLAR_SYSTEM_ID, SOLAR_SYSTEM_NAME, SOLAR_SYSTEM_SECURITY, REGION_ID, REGION_NAME, "
+                    SQL = SQL & "FACILITY_TYPE_ID, FACILITY_TYPE, ACTIVITY_ID, FACILITY_TAX, "
+                    If Have6ModifierFields Then
+                        SQL = SQL & "BASE_MM, BASE_TM, BASE_CM, ADDITIONAL_MM, ADDITIONAL_TM, ADDITIONAL_CM, GROUP_ID, CATEGORY_ID, COST_INDEX, OUTPOST "
+                    Else
+                        SQL = SQL & "MATERIAL_MULTIPLIER, TIME_MULTIPLIER, COST_MULTIPLIER, GROUP_ID, CATEGORY_ID, COST_INDEX, OUTPOST "
+                    End If
+                    SQL = SQL & "FROM STATION_FACILITIES WHERE OUTPOST = 1)"
+                    DBCommand = New SQLiteCommand(SQL, DBOLD)
+                    readerUpdate = DBCommand.ExecuteReader
+                    readerUpdate.Read()
+                    Count = readerUpdate.GetInt64(0)
+                    readerUpdate.Close()
+
+                    ' Copy all of the outpost data to the static station table - Make sure we dump any duplicates if they still exist
+                    SQL = "SELECT DISTINCT FACILITY_ID, FACILITY_NAME, SOLAR_SYSTEM_ID, SOLAR_SYSTEM_NAME, SOLAR_SYSTEM_SECURITY, REGION_ID, REGION_NAME, "
+                    SQL = SQL & "FACILITY_TYPE_ID, FACILITY_TYPE, ACTIVITY_ID, FACILITY_TAX, "
+                    If Have6ModifierFields Then
+                        SQL = SQL & "BASE_MM, BASE_TM, BASE_CM, ADDITIONAL_MM, ADDITIONAL_TM, ADDITIONAL_CM, GROUP_ID, CATEGORY_ID, COST_INDEX, OUTPOST "
+                    Else
+                        SQL = SQL & "MATERIAL_MULTIPLIER, TIME_MULTIPLIER, COST_MULTIPLIER, GROUP_ID, CATEGORY_ID, COST_INDEX, OUTPOST "
+                    End If
+                    SQL = SQL & "FROM STATION_FACILITIES WHERE OUTPOST = 1"
+
+                    DBCommand = New SQLiteCommand(SQL, DBOLD)
+                    readerUpdate = DBCommand.ExecuteReader
+                    On Error GoTo 0
+
+                    Me.Invoke(UpdateStatusDelegate, True, "Updating Station Data...")
+                    worker.ReportProgress(Counter)
 
                     ' They might not have this table yet.
                     If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
-                        ' They have the new table, but whatever is in the new database needs to be updated or inserted (if not there)
-
-                        ' Drop indexes for faster inserts
-                        SQL = "DROP INDEX IF EXISTS IDX_SF_FN;"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        SQL = "DROP INDEX IF EXISTS IDX_SF_FID;" ' not sure if I still need these
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        SQL = "DROP INDEX IF EXISTS IDX_SF_SSID_AID;" ' not sure if I still need these
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        SQL = "DROP INDEX IF EXISTS IDX_SF_GID;"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        SQL = "DROP INDEX IF EXISTS IDX_SF_OP_AID_CID_GID;"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        SQL = "DROP INDEX IF EXISTS IDX_SF_CID;"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        SQL = "DROP INDEX IF EXISTS IDX_SF_OP_FN_AID_CID_GID;"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        Call CommitSQLiteTransaction(DBNEW)
+                        ' They have the new table, but need to import all the outpost data they have
                         Call BeginSQLiteTransaction(DBNEW)
 
+                        ' Insert all the outpost data
                         While readerUpdate.Read
-                            Dim TempID As String = CStr(readerUpdate.GetInt64(0))
-                            Dim TempSQL As String = "SELECT 'X' FROM STATION_FACILITIES WHERE FACILITY_ID = " & TempID
-                            DBCommand = New SQLiteCommand(SQL, DBNEW)
-                            readerCheck = DBCommand.ExecuteReader
-
-                            If readerCheck.Read Then
-                                SQL = "UPDATE STATION_FACILITIES SET "
-                                SQL = SQL & "FACILITY_NAME = " & BuildInsertFieldString(readerUpdate.GetString(1)) & ","
-                                SQL = SQL & "SOLAR_SYSTEM_ID = " & BuildInsertFieldString(readerUpdate.GetInt64(2)) & ","
-                                SQL = SQL & "SOLAR_SYSTEM_NAME = " & BuildInsertFieldString(readerUpdate.GetString(3)) & ","
-                                SQL = SQL & "SOLAR_SYSTEM_SECURITY = " & BuildInsertFieldString(readerUpdate.GetDouble(4)) & ","
-                                SQL = SQL & "REGION_ID = " & BuildInsertFieldString(readerUpdate.GetInt64(5)) & ","
-                                SQL = SQL & "REGION_NAME = " & BuildInsertFieldString(readerUpdate.GetString(6)) & ","
-                                SQL = SQL & "FACILITY_TYPE_ID = " & BuildInsertFieldString(readerUpdate.GetInt64(7)) & ","
-                                SQL = SQL & "FACILITY_TYPE = " & BuildInsertFieldString(readerUpdate.GetString(8)) & ","
-                                SQL = SQL & "ACTIVITY_ID = " & BuildInsertFieldString(readerUpdate.GetInt64(9)) & ","
-                                SQL = SQL & "ACTIVITY_NAME = " & BuildInsertFieldString(readerUpdate.GetString(10)) & ","
-                                SQL = SQL & "FACILITY_TAX = " & BuildInsertFieldString(readerUpdate.GetDouble(11)) & ","
-                                If Have6ModifierFields Then
-                                    ' Need to combine the 6 fields into 3
-                                    SQL = SQL & "MATERIAL_MULTIPLIER = " & BuildInsertFieldString(readerUpdate.GetDouble(12) * readerUpdate.GetDouble(15)) & ","
-                                    SQL = SQL & "TIME_MULTIPLIER = " & BuildInsertFieldString(readerUpdate.GetDouble(13) * readerUpdate.GetDouble(16)) & ","
-                                    SQL = SQL & "COST_MULTIPLIER = " & BuildInsertFieldString(readerUpdate.GetDouble(14) * readerUpdate.GetDouble(17)) & ","
-                                    SQL = SQL & "GROUP_ID = " & BuildInsertFieldString(readerUpdate.GetInt64(18)) & ","
-                                    If Not IsDBNull(readerUpdate.GetValue(19)) Then
-                                        SQL = SQL & "GROUP_NAME = " & BuildInsertFieldString(readerUpdate.GetString(19)) & ","
-                                    Else
-                                        SQL = SQL & "GROUP_NAME = NULL, "
-                                    End If
-                                    SQL = SQL & "CATEGORY_ID = " & BuildInsertFieldString(readerUpdate.GetInt64(20)) & ","
-                                    If Not IsDBNull(readerUpdate.GetValue(21)) Then
-                                        SQL = SQL & "CATEGORY_NAME = " & BuildInsertFieldString(readerUpdate.GetString(21)) & ","
-                                    Else
-                                        SQL = SQL & "CATEGORY_NAME = NULL, "
-                                    End If
-                                    SQL = SQL & "COST_INDEX = " & BuildInsertFieldString(readerUpdate.GetDouble(22)) & ","
-                                    SQL = SQL & "OUTPOST = " & BuildInsertFieldString(readerUpdate.GetInt32(23)) & " "
-                                Else
-                                    SQL = SQL & "MATERIAL_MULTIPLIER = " & BuildInsertFieldString(readerUpdate.GetDouble(12)) & ","
-                                    SQL = SQL & "TIME_MULTIPLIER = " & BuildInsertFieldString(readerUpdate.GetDouble(13)) & ","
-                                    SQL = SQL & "COST_MULTIPLIER = " & BuildInsertFieldString(readerUpdate.GetDouble(14)) & ","
-                                    SQL = SQL & "GROUP_ID = " & BuildInsertFieldString(readerUpdate.GetInt64(15)) & ","
-                                    If Not IsDBNull(readerUpdate.GetValue(16)) Then
-                                        SQL = SQL & "GROUP_NAME = " & BuildInsertFieldString(readerUpdate.GetString(16)) & ","
-                                    Else
-                                        SQL = SQL & "GROUP_NAME = NULL, "
-                                    End If
-                                    SQL = SQL & "CATEGORY_ID = " & BuildInsertFieldString(readerUpdate.GetInt64(17)) & ","
-                                    If Not IsDBNull(readerUpdate.GetValue(18)) Then
-                                        SQL = SQL & "CATEGORY_NAME = " & BuildInsertFieldString(readerUpdate.GetString(18)) & ","
-                                    Else
-                                        SQL = SQL & "CATEGORY_NAME = NULL, "
-                                    End If
-                                    SQL = SQL & "COST_INDEX = " & BuildInsertFieldString(readerUpdate.GetDouble(19)) & ","
-
-                                    ' Reset the 2 here so we don't have to have special processing later
-                                    If readerUpdate.GetInt32(20) = 2 Then
-                                        SQL = SQL & "OUTPOST = 1 "
-                                    Else
-                                        SQL = SQL & "OUTPOST = " & BuildInsertFieldString(readerUpdate.GetInt32(20)) & " "
-                                    End If
-                                End If
-
-                                SQL = SQL & "WHERE FACILITY_ID = " & TempID
+                            ' Insert
+                            SQL = "INSERT INTO STATION_FACILITIES VALUES ("
+                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
+                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
+                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
+                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
+                            If Have6ModifierFields Then
+                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11) * readerUpdate.Item(14)) & ","
+                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12) * readerUpdate.Item(15)) & ","
+                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13) * readerUpdate.Item(16)) & ","
+                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ","
+                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
+                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
+                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20)) & ")"
                             Else
-                                ' Insert
-                                SQL = "INSERT INTO STATION_FACILITIES VALUES ("
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
                                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-                                If Have6ModifierFields Then
-                                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12) * readerUpdate.Item(15)) & ","
-                                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13) * readerUpdate.Item(16)) & ","
-                                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14) * readerUpdate.Item(17)) & ","
-                                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
-                                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
-                                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20)) & ","
-                                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(21)) & ","
-                                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(22)) & ","
-                                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(23))
-                                Else
-                                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-                                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-                                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
-                                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
-                                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
-                                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ","
-                                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
-                                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
-                                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20))
-                                End If
-
-                                SQL = SQL & ")"
+                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
+                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
+                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
+                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
+                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
+                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ")"
                             End If
 
                             Call ExecuteNonQuerySQL(SQL, DBNEW)
+                            Counter += 1
+
+                            On Error Resume Next
+                            worker.ReportProgress(CInt(Counter / Count * 100))
+                            On Error GoTo 0
 
                         End While
-
-                        Me.Invoke(UpdateStatusDelegate, False, "Optimizing Data...")
-
-                        ' Finally restore indexes
-                        SQL = "CREATE INDEX IDX_SF_FN ON STATION_FACILITIES (FACILITY_NAME);"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        SQL = "CREATE INDEX IDX_SF_FID ON STATION_FACILITIES (FACILITY_ID);"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        SQL = "CREATE INDEX IDX_SF_SSID_AID ON STATION_FACILITIES (SOLAR_SYSTEM_ID, ACTIVITY_ID);"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        SQL = "CREATE INDEX IDX_SF_GID ON STATION_FACILITIES (GROUP_ID);"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        SQL = "CREATE INDEX IDX_SF_OP_AID_CID_GID ON STATION_FACILITIES (OUTPOST, ACTIVITY_ID, CATEGORY_ID, GROUP_ID, REGION_NAME, SOLAR_SYSTEM_NAME);"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        SQL = "CREATE INDEX IDX_SF_CID ON STATION_FACILITIES (CATEGORY_ID);"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        SQL = "CREATE INDEX IDX_SF_OP_FN_AID_CID_GID ON STATION_FACILITIES (OUTPOST, FACILITY_NAME, ACTIVITY_ID, CATEGORY_ID, GROUP_ID, REGION_NAME, SOLAR_SYSTEM_NAME);"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
 
                         Call CommitSQLiteTransaction(DBNEW)
 
                         readerUpdate.Close()
                     End If
+
+                    Timer.Stop()
+                    Debug.Print("station facilities " & Timer.Elapsed.Seconds)
+                    Timer.Reset()
 
                     readerUpdate = Nothing
                     DBCommand = Nothing
@@ -1684,29 +1657,29 @@ Public Class frmUpdaterMain
                     SQL = ""
                 End If
 
-            ElseIf UpdateFileList(i).Name = EVE_IMAGES_ZIP Then
-                Me.Invoke(UpdateStatusDelegate, False, "Installing Image Updates...")
-                ProgramErrorLocation = "Cannot copy images"
-                ' Images will be zipped, so need to unzip into temp folder
-                Dim archiver As New ZipForge()
-                ' The name of the ZIP file to unzip
-                archiver.FileName = UPDATES_FOLDER & UpdateFileList(i).Name
-                ' Open an existing archive
-                archiver.OpenArchive(FileMode.Open)
-                ' Default path for all operations    
-                'If UpdateFileList(i).Version <> "" Then
-                '    EVEImagesNewLocalFolderName = EVE_IMAGES_ZIP.Substring(0, Len(EVE_IMAGES_ZIP) - 4) & " " & UpdateFileList(i).Version
-                'Else
-                EVEImagesNewLocalFolderName = EVE_IMAGES_ZIP.Substring(0, Len(EVE_IMAGES_ZIP) - 4) ' Save as base name
-                'End If
-                archiver.BaseDir = UPDATES_FOLDER & EVEImagesNewLocalFolderName
-                ' Extract all files from the archive to base dir
-                archiver.ExtractFiles("*.*")
-                ' Close archive
-                archiver.CloseArchive()
-                ProgramErrorLocation = ""
-                SQL = ""
-            End If
+                ElseIf UpdateFileList(i).Name = EVE_IMAGES_ZIP Then
+                    Me.Invoke(UpdateStatusDelegate, False, "Installing Image Updates...")
+                    ProgramErrorLocation = "Cannot copy images"
+                    ' Images will be zipped, so need to unzip into temp folder
+                    Dim archiver As New ZipForge()
+                    ' The name of the ZIP file to unzip
+                    archiver.FileName = UPDATES_FOLDER & UpdateFileList(i).Name
+                    ' Open an existing archive
+                    archiver.OpenArchive(FileMode.Open)
+                    ' Default path for all operations    
+                    'If UpdateFileList(i).Version <> "" Then
+                    '    EVEImagesNewLocalFolderName = EVE_IMAGES_ZIP.Substring(0, Len(EVE_IMAGES_ZIP) - 4) & " " & UpdateFileList(i).Version
+                    'Else
+                    EVEImagesNewLocalFolderName = EVE_IMAGES_ZIP.Substring(0, Len(EVE_IMAGES_ZIP) - 4) ' Save as base name
+                    'End If
+                    archiver.BaseDir = UPDATES_FOLDER & EVEImagesNewLocalFolderName
+                    ' Extract all files from the archive to base dir
+                    archiver.ExtractFiles("*.*")
+                    ' Close archive
+                    archiver.CloseArchive()
+                    ProgramErrorLocation = ""
+                    SQL = ""
+                End If
         Next
 
         ProgramErrorLocation = ""
@@ -1804,6 +1777,9 @@ Public Class frmUpdaterMain
         ProgramErrorLocation = ""
         Me.Invoke(UpdateStatusDelegate, False, "Cleaning up Temp Files...")
         DBCommand = Nothing
+
+        Timer2.Stop()
+        Debug.Print("Total Time: " & Timer2.Elapsed.Seconds)
 
         Exit Sub
 
