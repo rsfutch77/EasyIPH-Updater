@@ -54,7 +54,7 @@ Partial Class frmErrorDB
         Me.llblAccessDBLink.Size = New System.Drawing.Size(263, 20)
         Me.llblAccessDBLink.TabIndex = 3
         Me.llblAccessDBLink.TabStop = True
-        Me.llblAccessDBLink.Text = "http://sourceforge.net/projects/eveiph/"
+        Me.llblAccessDBLink.Text = "http://eveiph.github.io/"
         Me.llblAccessDBLink.TextAlign = System.Drawing.ContentAlignment.TopCenter
         '
         'frmErrorDB

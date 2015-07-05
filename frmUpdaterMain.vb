@@ -52,8 +52,8 @@ Public Class frmUpdaterMain
     Public Const UpdaterFileName As String = "EVEIPH Updater.exe"
 
     ' File Path
-    Public Const XMLUpdateServerURL = "http://sourceforge.net/projects/eveiph/files/Latest%20Files/LatestVersionIPH.xml/download"
-    Public Const XMLUpdateTestServerURL = "http://sourceforge.net/projects/eveiph/files/Testing/LatestVersionIPH%20Test.xml/download"
+    Public Const XMLUpdateServerURL = "http://www.mediafire.com/download/zazw6acanj1m43x/LatestVersionIPH.xml"
+    Public Const XMLUpdateTestServerURL = "http://www.mediafire.com/download/zazw6acanj1m43x/LatestVersionIPH Test.xml"
 
     ' For tracking an error
     Public ProgramErrorLocation As String
@@ -190,8 +190,6 @@ Public Class frmUpdaterMain
         Dim HaveNewOwnedBPTable As Boolean = False
 
         'Create a variable tracking times
-        Dim Timer As New Stopwatch
-        Dim Timer2 As New Stopwatch
         Dim Count As Long = 0
         Dim Counter As Long = 0
 
@@ -199,7 +197,6 @@ Public Class frmUpdaterMain
         On Error GoTo 0
 
         Application.UseWaitCursor = True
-        Timer2.Start()
 
         ' Sets the CurrentCulture 
         Thread.CurrentThread.CurrentCulture = LocalCulture
@@ -415,7 +412,6 @@ Public Class frmUpdaterMain
                     Call ExecuteNonQuerySQL("PRAGMA auto_vacuum = FULL;", DBNEW) ' Keep the DB small
 
                     ' API
-                    Timer.Start()
                     ProgramErrorLocation = "Cannot copy Character API"
 
                     ' See if they have the facility and blueprint cache field values first
@@ -530,12 +526,7 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    Timer.Stop()
-                    Debug.Print("API " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
-
                     ' ASSETS
-                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy Assets"
                     SQL = "SELECT * FROM ASSETS"
@@ -571,12 +562,7 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    Timer.Stop()
-                    Debug.Print("Assets " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
-
                     ' ASSET_LOCATIONS
-                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy Asset Locations"
                     SQL = "SELECT * FROM ASSET_LOCATIONS"
@@ -608,12 +594,7 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    Timer.Stop()
-                    Debug.Print("asset locations " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
-
                     ' CHARACTER_SKILLS
-                    Timer.Start()
                     ProgramErrorLocation = "Cannot copy Character Skills"
                     SQL = "SELECT * FROM CHARACTER_SKILLS"
                     DBCommand = New SQLiteCommand(SQL, DBOLD)
@@ -641,12 +622,7 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    Timer.Stop()
-                    Debug.Print("skills " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
-
                     ' CHARACTER_STANDINGS
-                    Timer.Start()
                     ProgramErrorLocation = "Cannot copy Character Standings"
                     SQL = "SELECT * FROM CHARACTER_STANDINGS"
                     DBCommand = New SQLiteCommand(SQL, DBOLD)
@@ -672,12 +648,7 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    Timer.Stop()
-                    Debug.Print("Standings " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
-
                     ' CURRENT_RESEARCH_AGENTS
-                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy CURRENT_RESEARCH_AGENTS Data table"
                     SQL = "SELECT * FROM CURRENT_RESEARCH_AGENTS"
@@ -710,12 +681,8 @@ Public Class frmUpdaterMain
 
                     readerUpdate = Nothing
                     DBCommand = Nothing
-                    Timer.Stop()
-                    Debug.Print("Agents " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
 
                     ' EMD_ITEM_PRICE_HISTORY
-                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy EMD Price History"
                     SQL = "SELECT * FROM EMD_ITEM_PRICE_HISTORY"
@@ -752,12 +719,7 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    Timer.Stop()
-                    Debug.Print("emd price history " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
-
                     ' EMD_UPDATE_HISTORY
-                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy EMD Update History"
                     SQL = "SELECT * FROM EMD_UPDATE_HISTORY"
@@ -789,12 +751,7 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    Timer.Stop()
-                    Debug.Print("emd update history " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
-
                     ' CREST_CACHE_DATES
-                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy CREST_CACHE_DATES table"
 
@@ -840,12 +797,8 @@ Public Class frmUpdaterMain
                     End If
 
                     Call CommitSQLiteTransaction(DBNEW)
-                    Timer.Stop()
-                    Debug.Print("crest cache dates " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
 
                     ' INDUSTRY_JOBS
-                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy Industry Jobs"
                     SQL = "SELECT * FROM INDUSTRY_JOBS"
@@ -923,12 +876,7 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    Timer.Stop()
-                    Debug.Print("industry jobs " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
-
                     ' ITEM_PRICES - includes CREST Market Prices updates
-                    Timer.Start()
                     ProgramErrorLocation = "Cannot copy Item Prices"
                     ' See if they have the new or old format for item prices
                     On Error Resume Next
@@ -972,12 +920,7 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    Timer.Stop()
-                    Debug.Print("item prices " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
-
                     ' ITEM_PRICES_CACHE
-                    Timer.Start()
                     ' See if they have the percentile values first
                     ProgramErrorLocation = "Cannot copy Item Price Cache"
 
@@ -1095,12 +1038,7 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    Timer.Stop()
-                    Debug.Print("Item prices cache " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
-
                     ' OWNED_BLUEPRINTS
-                    Timer.Start()
                     ProgramErrorLocation = "Cannot copy Owned Blueprints"
                     SQL = "SELECT * FROM OWNED_BLUEPRINTS"
                     DBCommand = New SQLiteCommand(SQL, DBOLD)
@@ -1139,12 +1077,7 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    Timer.Stop()
-                    Debug.Print("owned blueprints " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
-
                     ' STATIONS
-                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy STATIONS Data table"
                     SQL = "SELECT * FROM STATIONS"
@@ -1182,14 +1115,9 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    Timer.Stop()
-                    Debug.Print("stations " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
-
                     ' NEW CREST TABLES
 
                     ' INDUSTRY_CATEGORY_SPECIALTIES
-                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy INDUSTRY_CATEGORY_SPECIALTIES Data table"
                     SQL = "SELECT * FROM INDUSTRY_CATEGORY_SPECIALTIES"
@@ -1223,12 +1151,7 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    Timer.Stop()
-                    Debug.Print("industry categories " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
-
                     ' INDUSTRY_FACILITIES
-                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy INDUSTRY_FACILITIES Data table"
                     SQL = "SELECT * FROM INDUSTRY_FACILITIES"
@@ -1267,12 +1190,7 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    Timer.Stop()
-                    Debug.Print("industry facilities " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
-
                     ' INDUSTRY_GROUP_SPECIALTIES
-                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy INDUSTRY_GROUP_SPECIALTIES Data table"
                     SQL = "SELECT * FROM INDUSTRY_GROUP_SPECIALTIES"
@@ -1307,12 +1225,7 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    Timer.Stop()
-                    Debug.Print("industry group specialties " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
-
                     ' INDUSTRY_SYSTEMS_COST_INDICIES
-                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy INDUSTRY_SYSTEMS_COST_INDICIES Data table"
                     SQL = "SELECT * FROM INDUSTRY_SYSTEMS_COST_INDICIES"
@@ -1349,12 +1262,7 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    Timer.Stop()
-                    Debug.Print("Industry System Indicies " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
-
                     ' INDUSTRY_TEAMS
-                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS Data table"
                     SQL = "SELECT * FROM INDUSTRY_TEAMS"
@@ -1395,12 +1303,7 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    Timer.Stop()
-                    Debug.Print("industry teams " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
-
                     ' INDUSTRY_TEAMS_AUCTIONS
-                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS_AUCTIONS Data table"
                     SQL = "SELECT * FROM INDUSTRY_TEAMS_AUCTIONS"
@@ -1442,12 +1345,7 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    Timer.Stop()
-                    Debug.Print("Industry Team auctions " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
-
                     ' INDUSTRY_TEAMS_AUCTIONS_BIDS
-                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS_AUCTIONS_BIDS Data table"
                     SQL = "SELECT * FROM INDUSTRY_TEAMS_AUCTIONS_BIDS"
@@ -1489,12 +1387,7 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    Timer.Stop()
-                    Debug.Print("industry team auction bids " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
-
                     ' INDUSTRY_TEAMS_BONUSES
-                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS_BONUSES Data table"
                     SQL = "SELECT * FROM INDUSTRY_TEAMS_BONUSES"
@@ -1532,29 +1425,24 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    Timer.Stop()
-                    Debug.Print("industry team bonuses " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
-
                     ' STATION_FACILITIES
-                    Timer.Start()
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy STATION_FACILITIES Data table"
                     SQL = "SELECT MATERIAL_MULTIPLIER FROM STATION_FACILITIES"
                     DBCommand = New SQLiteCommand(SQL, DBOLD)
                     readerCheck2 = DBCommand.ExecuteReader
+                    readerCheck2.Read()
                     On Error GoTo 0
 
                     Dim Have6ModifierFields As Boolean
                     ' See if they have this change to make the multiplers into 1 field instead of 2
                     If Not IsNothing(readerCheck2) Then
                         Have6ModifierFields = False
+                        readerCheck2.Close()
                     Else
                         Have6ModifierFields = True
                     End If
-                    readerCheck2.Close()
 
-                    On Error Resume Next
                     ProgramErrorLocation = "Cannot copy STATION_FACILITIES Data table"
 
                     SQL = " SELECT COUNT(*) FROM (SELECT DISTINCT FACILITY_ID, FACILITY_NAME, SOLAR_SYSTEM_ID, SOLAR_SYSTEM_NAME, SOLAR_SYSTEM_SECURITY, REGION_ID, REGION_NAME, "
@@ -1583,7 +1471,6 @@ Public Class frmUpdaterMain
 
                     DBCommand = New SQLiteCommand(SQL, DBOLD)
                     readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
 
                     Me.Invoke(UpdateStatusDelegate, True, "Updating Station Data...")
                     worker.ReportProgress(Counter)
@@ -1639,10 +1526,6 @@ Public Class frmUpdaterMain
 
                         readerUpdate.Close()
                     End If
-
-                    Timer.Stop()
-                    Debug.Print("station facilities " & Timer.Elapsed.Seconds)
-                    Timer.Reset()
 
                     readerUpdate = Nothing
                     DBCommand = Nothing
@@ -1778,9 +1661,6 @@ Public Class frmUpdaterMain
         Me.Invoke(UpdateStatusDelegate, False, "Cleaning up Temp Files...")
         DBCommand = Nothing
 
-        Timer2.Stop()
-        Debug.Print("Total Time: " & Timer2.Elapsed.Seconds)
-
         Exit Sub
 
 RevertToOldFileVersions:
@@ -1865,14 +1745,13 @@ RevertToOldFileVersions:
     ' This event handler deals with the results of the background operation.
     Private Sub BGWorker_RunWorkerCompleted(ByVal sender As System.Object, ByVal e As RunWorkerCompletedEventArgs) Handles BGWorker.RunWorkerCompleted
         Dim ErrorText As String = ""
-        Dim CheckError As String = ""
 
         On Error Resume Next
 
         ' Allow the messagebox to pop up over the form now
         Me.TopMost = False
 
-        CheckError = e.Error.ToString
+        ErrorText = e.Error.ToString
 
         ' Clean up all OLD files and folders that might be left around
         Call CleanUpOLDFiles()
@@ -1904,7 +1783,6 @@ RevertToOldFileVersions:
                 MsgBox(MainMessage & vbCrLf & "Error: " & ThrownError, vbCritical, Application.ProductName)
             Else
                 Call ShowNotifyBox(MainMessage)
-                'MsgBox(MainMessage, vbCritical, Application.ProductName)
             End If
 
         Else
