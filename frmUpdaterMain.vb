@@ -64,11 +64,8 @@ Public Class frmUpdaterMain
     Public ROOT_FOLDER As String ' Where the root folder is located
     Public EVEIPH_SHELL_PATH As String ' Where to shell back to
 
-    'Public Const AppDataPath As String = "EVEIPH\EVE Isk per Hour\"
-
     Public Const EVE_DB As String = "EVEIPH DB.s3db"
     Public Const EVE_IMAGES_ZIP As String = "EVEIPH Images.zip"
-    'Public Const EVEIPH_LAUNCHER As String = "EVEIPH Launcher.exe" ' For bullshit shelling since I can't read the XML file I copy to the root directory from shelled program directly
     Public Const EVEIPH_EXE As String = "EVE Isk per Hour.exe" ' For Shelling
 
     Public Const DATASOURCESTRING As String = "Data source="
@@ -81,6 +78,20 @@ Public Class frmUpdaterMain
 
     Public Sub New()
         Dim UserPath As String = ""
+
+        Dim userdpi As Integer
+        Dim Tempform As New Form
+        Using gfx As Graphics = Tempform.CreateGraphics()
+            userdpi = CInt(gfx.DpiX)
+        End Using
+
+        If userdpi = 96 Then
+            AutoScaleSetting = Windows.Forms.AutoScaleMode.Dpi
+        Else
+            AutoScaleSetting = Windows.Forms.AutoScaleMode.Dpi
+        End If
+
+        Me.AutoScaleMode = AutoScaleSetting
 
         ' This call is required by the designer.
         InitializeComponent()
@@ -2070,3 +2081,7 @@ RevertToOldFileVersions:
     End Sub
 
 End Class
+
+Public Module Public_Variables
+    Public AutoScaleSetting As AutoScaleMode
+End Module

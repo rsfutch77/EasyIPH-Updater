@@ -11,4 +11,15 @@
     Private Sub frmErrorDB_Shown(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Shown
         Me.Activate()
     End Sub
+
+    Public Sub New()
+
+        Me.AutoScaleMode = AutoScaleSetting
+
+        ' This call is required by the designer.
+        InitializeComponent()
+
+        ' Add any initialization after the InitializeComponent() call.
+
+    End Sub
 End Class
