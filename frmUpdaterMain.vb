@@ -33,8 +33,13 @@ Public Class frmUpdaterMain
         End If
     End Sub
 
-    Public Sub UpdateProgressBar(ByVal pgvalue As Integer)
-        pgUpdate.Value = pgvalue
+    ' Updates the value in the progressbar for a smooth progress (slows procesing a little) - total hack from this: http://stackoverflow.com/questions/977278/how-can-i-make-the-progress-bar-update-fast-enough/1214147#1214147
+    Public Sub UpdateProgressBar(inValue As Integer)
+        If pgUpdate.Value <= pgUpdate.Maximum - 1 Then
+            pgUpdate.Value = pgUpdate.Value + inValue
+            pgUpdate.Value = pgUpdate.Value - inValue
+            pgUpdate.Value = pgUpdate.Value + inValue
+        End If
     End Sub
 
 #End Region
@@ -78,20 +83,6 @@ Public Class frmUpdaterMain
 
     Public Sub New()
         Dim UserPath As String = ""
-
-        Dim userdpi As Integer
-        Dim Tempform As New Form
-        Using gfx As Graphics = Tempform.CreateGraphics()
-            userdpi = CInt(gfx.DpiX)
-        End Using
-
-        If userdpi = 96 Then
-            AutoScaleSetting = Windows.Forms.AutoScaleMode.Dpi
-        Else
-            AutoScaleSetting = Windows.Forms.AutoScaleMode.Dpi
-        End If
-
-        Me.AutoScaleMode = AutoScaleSetting
 
         ' This call is required by the designer.
         InitializeComponent()
@@ -418,8 +409,8 @@ Public Class frmUpdaterMain
                     DBNEW.Open()
 
                     Call ExecuteNonQuerySQL("PRAGMA synchronous = NORMAL", DBOLD)
-                    'Call ExecuteNonQuerySQL("PRAGMA synchronous = NORMAL", DBNEW)
-                    Call ExecuteNonQuerySQL("PRAGMA synchronous = OFF; PRAGMA locking_mode = EXCLUSIVE; PRAGMA cache_size = 10000; PRAGMA page_size = 4096; PRAGMA temp_store = MEMORY; PRAGMA journal_mode = OFF; PRAGMA count_changes = OFF", DBNEW)
+                    Call ExecuteNonQuerySQL("PRAGMA synchronous = NORMAL", DBNEW)
+                    'Call ExecuteNonQuerySQL("PRAGMA synchronous = OFF; PRAGMA locking_mode = EXCLUSIVE; PRAGMA cache_size = 10000; PRAGMA page_size = 4096; PRAGMA temp_store = MEMORY; PRAGMA journal_mode = OFF; PRAGMA count_changes = OFF", DBNEW)
                     Call ExecuteNonQuerySQL("PRAGMA auto_vacuum = FULL;", DBNEW) ' Keep the DB small
 
                     ' API
@@ -2081,7 +2072,3 @@ RevertToOldFileVersions:
     End Sub
 
 End Class
-
-Public Module Public_Variables
-    Public AutoScaleSetting As AutoScaleMode
-End Module
