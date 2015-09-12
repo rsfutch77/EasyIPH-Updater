@@ -35,10 +35,12 @@ Public Class frmUpdaterMain
 
     ' Updates the value in the progressbar for a smooth progress (slows procesing a little) - total hack from this: http://stackoverflow.com/questions/977278/how-can-i-make-the-progress-bar-update-fast-enough/1214147#1214147
     Public Sub UpdateProgressBar(inValue As Integer)
-        If pgUpdate.Value <= pgUpdate.Maximum - 1 Then
-            pgUpdate.Value = pgUpdate.Value + inValue
-            pgUpdate.Value = pgUpdate.Value - inValue
-            pgUpdate.Value = pgUpdate.Value + inValue
+        If inValue <= pgUpdate.Maximum - 1 And inValue <> 0 Then
+            pgUpdate.Value = inValue
+            pgUpdate.Value = pgUpdate.Value - 1
+            pgUpdate.Value = inValue
+        Else
+            pgUpdate.Value = inValue
         End If
     End Sub
 
