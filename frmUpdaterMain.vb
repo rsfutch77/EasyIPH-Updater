@@ -26,6 +26,8 @@ Public Class frmUpdaterMain
 
 #Region "Delegate Functions"
 
+    Private Property HaveReprocessingFields As Boolean
+
     Public Sub UpdateStatus(ByVal pgBarVisible As Boolean, ByVal lblText As String)
         pgUpdate.Visible = pgBarVisible
         If lblText <> "" Then
@@ -391,6 +393,7 @@ Public Class frmUpdaterMain
                 ' ITEM_PRICES_CACHE
                 ' OWNED_BLUEPRINTS
                 ' STATIONS
+                ' FW_SYSTEM_UPGRADES
 
                 ' NEW CREST TABLES
                 ' INDUSTRY_CATEGORY_SPECIALTIES
@@ -1093,6 +1096,20 @@ Public Class frmUpdaterMain
                     If Not IsNothing(readerUpdate) Then
                         Call BeginSQLiteTransaction(DBNEW)
 
+                        On Error Resume Next
+                        Dim HaveReprocessingFields As Boolean
+                        SQL = "SELECT REPROCESSING_TAX_RATE FROM STATIONS"
+                        DBCommand = New SQLiteCommand(SQL, DBOLD)
+                        readerCheck = DBCommand.ExecuteReader
+                        ' If it didn't error, they have the fields
+                        If Err.Number = 0 Then
+                            HaveReprocessingFields = True
+                            readerCheck.Close()
+                        Else
+                            HaveReprocessingFields = False
+                        End If
+                        On Error GoTo 0
+
                         ' Delete all the station records first, then reload
                         SQL = "DELETE FROM STATIONS"
                         Call ExecuteNonQuerySQL(SQL, DBNEW)
@@ -1105,6 +1122,47 @@ Public Class frmUpdaterMain
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5))
+                            If HaveReprocessingFields Then
+                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7))
+                            Else
+                                SQL = SQL & "0,0"
+                            End If
+                            SQL = SQL & ")"
+
+                            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+                        End While
+
+                        Call CommitSQLiteTransaction(DBNEW)
+
+                        readerUpdate.Close()
+                    End If
+
+                    readerUpdate = Nothing
+                    DBCommand = Nothing
+
+                    ' FW_SYSTEM_UPGRADES
+                    On Error Resume Next
+                    ProgramErrorLocation = "Cannot copy FW_SYSTEM_UPGRADES Data table"
+                    SQL = "SELECT * FROM FW_SYSTEM_UPGRADES"
+                    DBCommand = New SQLiteCommand(SQL, DBOLD)
+                    readerUpdate = DBCommand.ExecuteReader
+                    On Error GoTo 0
+
+                    ' They might not have this table yet.
+                    If Not IsNothing(readerUpdate) Then
+                        Call BeginSQLiteTransaction(DBNEW)
+
+                        ' Copy the table data
+                        SQL = "SELECT * FROM FW_SYSTEM_UPGRADES"
+                        DBCommand = New SQLiteCommand(SQL, DBOLD)
+                        readerUpdate = DBCommand.ExecuteReader
+
+                        While readerUpdate.Read
+                            SQL = "INSERT INTO FW_SYSTEM_UPGRADES VALUES ("
+                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1))
                             SQL = SQL & ")"
 
                             Call ExecuteNonQuerySQL(SQL, DBNEW)
@@ -1516,6 +1574,7 @@ Public Class frmUpdaterMain
                                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
                                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ")"
                             End If
+
 
                             Call ExecuteNonQuerySQL(SQL, DBNEW)
                             Counter += 1
