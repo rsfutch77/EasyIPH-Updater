@@ -1121,7 +1121,7 @@ Public Class frmUpdaterMain
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5))
+                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
                             If HaveReprocessingFields Then
                                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
                                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7))
