@@ -104,14 +104,6 @@ Public Class frmUpdaterMain
             TestingVersion = False
         End If
 
-        ' See if they are running this from the folder directly
-        If ROOT_FOLDER.Contains("vshost") Then
-            MsgBox("This program cannot be run in standalone mode.", vbInformation, Application.ProductName)
-            End
-        Else
-            ROOT_FOLDER = ""
-        End If
-
         EVEIPH_SHELL_PATH = ROOT_FOLDER & EVEIPH_EXE
 
         ' Set the version of the XML file we will use
