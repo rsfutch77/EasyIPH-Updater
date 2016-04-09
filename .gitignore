@@ -4,9 +4,14 @@ Service References/*
 *.suo
 *.user
 
-# Ignore NuGet Packages
+# NuGet Packages
 *.nupkg
-# Ignore the packages folder
+# The packages folder can be ignored because of Package Restore
 **/packages/*
 # except build/, which is used as an MSBuild target.
 !**/packages/build/
+# Uncomment if necessary however generally it will be regenerated when needed
+#!**/packages/repositories.config
+# NuGet v3's project.json files produces more ignoreable files
+*.nuget.props
+*.nuget.targets

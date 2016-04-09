@@ -9,11 +9,6 @@ Imports System.Threading
 
 Imports Ionic.Zip
 
-
-Imports ComponentAce.Compression.ZipForge
-' This namespace contains ArchiverException class required for error handling
-Imports ComponentAce.Compression.Archiver
-
 Delegate Sub UpdateStatusSafe(ByVal pgBarVisible As Boolean, ByVal lblText As String)
 Delegate Sub UpdatePGBarSafe(ByVal pgBarValue As Integer)
 
