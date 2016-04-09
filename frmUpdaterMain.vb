@@ -7,6 +7,9 @@ Imports System.Data.SQLite
 Imports System.Globalization ' For culture info
 Imports System.Threading
 
+Imports Ionic.Zip
+
+
 Imports ComponentAce.Compression.ZipForge
 ' This namespace contains ArchiverException class required for error handling
 Imports ComponentAce.Compression.Archiver
@@ -1993,23 +1996,12 @@ Public Class frmUpdaterMain
             ElseIf UpdateFileList(i).Name = EVE_IMAGES_ZIP Then
                 Me.Invoke(UpdateStatusDelegate, False, "Installing Image Updates...")
                 ProgramErrorLocation = "Cannot copy images"
-                ' Images will be zipped, so need to unzip into temp folder
-                Dim archiver As New ZipForge()
-                ' The name of the ZIP file to unzip
-                archiver.FileName = UPDATES_FOLDER & UpdateFileList(i).Name
-                ' Open an existing archive
-                archiver.OpenArchive(FileMode.Open)
-                ' Default path for all operations    
-                'If UpdateFileList(i).Version <> "" Then
-                '    EVEImagesNewLocalFolderName = EVE_IMAGES_ZIP.Substring(0, Len(EVE_IMAGES_ZIP) - 4) & " " & UpdateFileList(i).Version
-                'Else
-                EVEImagesNewLocalFolderName = EVE_IMAGES_ZIP.Substring(0, Len(EVE_IMAGES_ZIP) - 4) ' Save as base name
-                'End If
-                archiver.BaseDir = UPDATES_FOLDER & EVEImagesNewLocalFolderName
-                ' Extract all files from the archive to base dir
-                archiver.ExtractFiles("*.*")
-                ' Close archive
-                archiver.CloseArchive()
+
+                Using zip = New ZipFile(UPDATES_FOLDER & UpdateFileList(i).Name)
+                    EVEImagesNewLocalFolderName = EVE_IMAGES_ZIP.Substring(0, Len(EVE_IMAGES_ZIP) - 4) ' Save as base name
+                    zip.ExtractAll(UPDATES_FOLDER & EVEImagesNewLocalFolderName)
+                End Using
+
                 ProgramErrorLocation = ""
                 SQL = ""
             End If
