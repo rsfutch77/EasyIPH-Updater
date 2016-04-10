@@ -7,9 +7,7 @@ Imports System.Data.SQLite
 Imports System.Globalization ' For culture info
 Imports System.Threading
 
-Imports ComponentAce.Compression.ZipForge
-' This namespace contains ArchiverException class required for error handling
-Imports ComponentAce.Compression.Archiver
+Imports Ionic.Zip
 
 Delegate Sub UpdateStatusSafe(ByVal pgBarVisible As Boolean, ByVal lblText As String)
 Delegate Sub UpdatePGBarSafe(ByVal pgBarValue As Integer)
@@ -102,14 +100,6 @@ Public Class frmUpdaterMain
             TestingVersion = True
         Else
             TestingVersion = False
-        End If
-
-        ' See if they are running this from the folder directly
-        If ROOT_FOLDER.Contains("vshost") Then
-            MsgBox("This program cannot be run in standalone mode.", vbInformation, Application.ProductName)
-            End
-        Else
-            ROOT_FOLDER = ""
         End If
 
         EVEIPH_SHELL_PATH = ROOT_FOLDER & EVEIPH_EXE
@@ -2001,23 +1991,12 @@ Public Class frmUpdaterMain
             ElseIf UpdateFileList(i).Name = EVE_IMAGES_ZIP Then
                 Me.Invoke(UpdateStatusDelegate, False, "Installing Image Updates...")
                 ProgramErrorLocation = "Cannot copy images"
-                ' Images will be zipped, so need to unzip into temp folder
-                Dim archiver As New ZipForge()
-                ' The name of the ZIP file to unzip
-                archiver.FileName = UPDATES_FOLDER & UpdateFileList(i).Name
-                ' Open an existing archive
-                archiver.OpenArchive(FileMode.Open)
-                ' Default path for all operations    
-                'If UpdateFileList(i).Version <> "" Then
-                '    EVEImagesNewLocalFolderName = EVE_IMAGES_ZIP.Substring(0, Len(EVE_IMAGES_ZIP) - 4) & " " & UpdateFileList(i).Version
-                'Else
-                EVEImagesNewLocalFolderName = EVE_IMAGES_ZIP.Substring(0, Len(EVE_IMAGES_ZIP) - 4) ' Save as base name
-                'End If
-                archiver.BaseDir = UPDATES_FOLDER & EVEImagesNewLocalFolderName
-                ' Extract all files from the archive to base dir
-                archiver.ExtractFiles("*.*")
-                ' Close archive
-                archiver.CloseArchive()
+
+                Using zip = New ZipFile(UPDATES_FOLDER & UpdateFileList(i).Name)
+                    EVEImagesNewLocalFolderName = EVE_IMAGES_ZIP.Substring(0, Len(EVE_IMAGES_ZIP) - 4) ' Save as base name
+                    zip.ExtractAll(UPDATES_FOLDER & EVEImagesNewLocalFolderName)
+                End Using
+
                 ProgramErrorLocation = ""
                 SQL = ""
             End If
