@@ -729,7 +729,7 @@ Public Class frmUpdaterMain
                     ' CHARACTER_SHEET
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy Character Sheet"
-                    SQL = "SELECT * FROM CHARACTER_SHEET"
+                    SQL = "SELECT * FROM CHARACTER_JUMP_CLONES"
                     DBCommand = New SQLiteCommand(SQL, DBOLD)
                     readerUpdate = DBCommand.ExecuteReader
                     On Error GoTo 0
@@ -743,7 +743,7 @@ Public Class frmUpdaterMain
                             SQL = SQL & "RACE, BLOOD_LINE_ID, BLOOD_LINE, ANCESTRY_LINE_ID, ANCESTRY_LINE, GENDER, CORPORATION_NAME, "
                             SQL = SQL & "CORPORATION_ID, ALLIANCE_NAME, ALLIANCE_ID, FACTION_NAME, FACTION_ID, FREE_SKILL_POINTS, "
                             SQL = SQL & "FREE_RESPECS, CLONE_JUMP_DATE, LAST_RESPEC_DATE, LAST_TIMED_RESPEC, REMOTE_STATION_DATE, JUMP_ACTIVATION, "
-                            SQL = SQL & "JUMP_FATIGUE, JUMP_LAST_UPDATE, BALANCE, INTELLIGENCE, MEMORY, WILLPOWER, PERCEPTION, CHARISMA) VALUES ("
+                            SQL = SQL & "JUMP_FATIGUE, JUMP_LAST_UPDATE, BALANCE, INTELLIGENCE, MEMORY, WILLPOWER, PERCEPTION, CHARISMA VALUES ("
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
@@ -1862,16 +1862,16 @@ Public Class frmUpdaterMain
                     DBCommand = New SQLiteCommand(SQL, DBOLD)
                     readerCheck2 = DBCommand.ExecuteReader
                     readerCheck2.Read()
+                    On Error GoTo 0
 
                     Dim Have6ModifierFields As Boolean
                     ' See if they have this change to make the multiplers into 1 field instead of 2
                     If Not IsNothing(readerCheck2) Then
                         Have6ModifierFields = False
+                        readerCheck2.Close()
                     Else
                         Have6ModifierFields = True
                     End If
-                    readerCheck2.Close()
-                    On Error GoTo 0
 
                     ProgramErrorLocation = "Cannot copy STATION_FACILITIES Data table"
 
@@ -1956,24 +1956,7 @@ Public Class frmUpdaterMain
                         Call CommitSQLiteTransaction(DBNEW)
 
                         readerUpdate.Close()
-
                     End If
-
-                    Call BeginSQLiteTransaction(DBNEW)
-
-                    ' Need to update the station_facilities table with all the old indicies so they don't load a new db with nothing (only outposts above)
-                    SQL = "SELECT DISTINCT SOLAR_SYSTEM_ID, ACTIVITY_ID, COST_INDEX FROM INDUSTRY_SYSTEMS_COST_INDICIES"
-                    DBCommand = New SQLiteCommand(SQL, DBNEW)
-                    readerUpdate = DBCommand.ExecuteReader
-
-                    While readerUpdate.Read
-                        SQL = "UPDATE STATION_FACILITIES SET COST_INDEX = " & CStr(readerUpdate.GetDouble(2)) & " "
-                        SQL = SQL & " WHERE SOLAR_SYSTEM_ID = " & CStr(readerUpdate.GetInt64(0)) & " AND ACTIVITY_ID = " & CStr(readerUpdate.GetInt32(1))
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-                    End While
-
-                    readerUpdate.Close()
-                    Call CommitSQLiteTransaction(DBNEW)
 
                     readerUpdate = Nothing
                     DBCommand = Nothing
@@ -2251,7 +2234,6 @@ RevertToOldFileVersions:
 
         Process.Start(EVEIPH_SHELL_PATH)
 
-        On Error Resume Next
         ' Done
         End
 
