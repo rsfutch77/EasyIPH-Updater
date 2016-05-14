@@ -22,6 +22,21 @@ Public Class frmUpdaterMain
 
     End Structure
 
+    Private Enum SettingTypes
+        TypeInteger = 1
+        TypeDouble = 2
+        TypeString = 3
+        TypeBoolean = 4
+        TypeLong = 5
+    End Enum
+
+
+    Private Const AppSettingsFileName As String = "ApplicationSettings"
+    Private Const SettingsFolder As String = "Settings/"
+    Private Const XMLfileType As String = ".xml"
+    Private Const DefaultProxyAddress As String = ""
+    Private Const DefaultProxyPort As Integer = 0
+
 #Region "Delegate Functions"
 
     Private Property HaveReprocessingFields As Boolean
@@ -2354,9 +2369,13 @@ RevertToOldFileVersions:
 
         Try 'Checks if the file exist
             Request = DirectCast(HttpWebRequest.Create(DownloadURL), HttpWebRequest)
+            Request.Proxy = GetProxyData()
+            Request.Credentials = CredentialCache.DefaultCredentials ' Added 9/27 to attempt to fix error: (407) Proxy Authentication Required.
+            Request.Timeout = 50000
             Response = CType(Request.GetResponse, HttpWebResponse)
         Catch ex As Exception
             ' Set as empty and return
+            writeStream.Close()
             Return ""
         End Try
 
@@ -2506,5 +2525,80 @@ RevertToOldFileVersions:
         End If
 
     End Sub
+
+    Public Function GetProxyData() As WebProxy
+        Dim ReturnProxy As WebProxy
+
+        Dim ProxyAddress As String = CStr(GetSettingValue(AppSettingsFileName, SettingTypes.TypeString, AppSettingsFileName, "ProxyAddress", DefaultProxyAddress))
+        Dim ProxyPort As Integer = CInt(GetSettingValue(AppSettingsFileName, SettingTypes.TypeInteger, AppSettingsFileName, "ProxyPort", DefaultProxyPort))
+
+        If ProxyAddress <> "" Then
+            If ProxyPort <> 0 Then
+                ReturnProxy = New WebProxy(ProxyAddress, ProxyPort)
+            Else
+                ReturnProxy = New WebProxy(ProxyAddress)
+            End If
+
+            ReturnProxy = New WebProxy(ProxyAddress, ProxyPort)
+            ReturnProxy.Credentials = CredentialCache.DefaultCredentials
+
+            Return ReturnProxy
+        Else
+            Return Nothing
+        End If
+
+    End Function
+
+    ' Gets a value from a referenced XML file by searching for it
+    Private Function GetSettingValue(ByRef FileName As String, ObjectType As SettingTypes, RootElement As String, ElementString As String, DefaultValue As Object) As Object
+        Dim m_xmld As New XmlDocument
+        Dim m_nodelist As XmlNodeList
+
+        Dim TempValue As String
+
+        'Load the Xml file
+        m_xmld.Load(SettingsFolder & FileName & XMLfileType)
+
+        'Get the settings
+
+        ' Get the cache update
+        m_nodelist = m_xmld.SelectNodes("/" & RootElement & "/" & ElementString)
+
+        If Not IsNothing(m_nodelist.Item(0)) Then
+            ' Should only be one
+            TempValue = m_nodelist.Item(0).InnerText
+
+            ' If blank, then return default
+            If TempValue = "" Then
+                Return DefaultValue
+            End If
+
+            If TempValue = "False" Or TempValue = "True" Then
+                ' Change to type boolean
+                ObjectType = SettingTypes.TypeBoolean
+            End If
+
+            ' Found it, return the cast
+            Select Case ObjectType
+                Case SettingTypes.TypeBoolean
+                    Return CBool(TempValue)
+                Case SettingTypes.TypeDouble
+                    Return CDbl(TempValue)
+                Case SettingTypes.TypeInteger
+                    Return CInt(TempValue)
+                Case SettingTypes.TypeString
+                    Return CStr(TempValue)
+                Case SettingTypes.TypeLong
+                    Return CLng(TempValue)
+            End Select
+
+        Else
+            ' Doesn't exist, use default
+            Return DefaultValue
+        End If
+
+        Return Nothing
+
+    End Function
 
 End Class
