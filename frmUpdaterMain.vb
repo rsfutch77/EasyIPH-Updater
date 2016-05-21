@@ -87,7 +87,6 @@ Public Class frmUpdaterMain
     Public Const EVE_DB As String = "EVEIPH DB.s3db"
     Public Const EVE_IMAGES_ZIP As String = "EVEIPH Images.zip"
     Public Const EVEIPH_EXE As String = "EVE Isk per Hour.exe" ' For Shelling
-    Public Const IONIC_ZIP As String = "Ionic.Zip.dll" ' This is a replacement for zipforge so need to make sure they have it
 
     Public Const DATASOURCESTRING As String = "Data source="
 
