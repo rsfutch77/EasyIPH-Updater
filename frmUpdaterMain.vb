@@ -6,7 +6,6 @@ Imports System.ComponentModel
 Imports System.Data.SQLite
 Imports System.Globalization ' For culture info
 Imports System.Threading
-
 Imports Ionic.Zip
 
 Delegate Sub UpdateStatusSafe(ByVal pgBarVisible As Boolean, ByVal lblText As String)
@@ -19,7 +18,6 @@ Public Class frmUpdaterMain
         Dim Version As String
         Dim URL As String
         Dim MD5 As String
-
     End Structure
 
     Private Enum SettingTypes
@@ -66,7 +64,7 @@ Public Class frmUpdaterMain
     Public TestingVersion As Boolean ' For testing downloads from the server for a new update
     Public LocalXMLFileName As String
 
-    Public UpdateFileList() As FileEntry = Nothing ' List of files that need updating, will download and rename all at the same time
+    Public UpdateFileList As New List(Of FileEntry) ' List of files that need updating, will download and rename all at the same time
     Public EVEImagesLocalFolderName As String = "" ' This is the name of the folder we are going to replace. This is stored in the text file on local comp
 
     Public Const XMLLatestVersionFileName As String = "LatestVersionIPH.xml"
@@ -89,6 +87,7 @@ Public Class frmUpdaterMain
     Public Const EVE_DB As String = "EVEIPH DB.s3db"
     Public Const EVE_IMAGES_ZIP As String = "EVEIPH Images.zip"
     Public Const EVEIPH_EXE As String = "EVE Isk per Hour.exe" ' For Shelling
+    Public Const IONIC_ZIP As String = "Ionic.Zip.dll" ' This is a replacement for zipforge so need to make sure they have it
 
     Public Const DATASOURCESTRING As String = "Data source="
 
@@ -164,8 +163,8 @@ Public Class frmUpdaterMain
         Dim EVEDBLocalFileVersion As String = "" ' Local DB version
 
         Dim TempFile As FileEntry
-        Dim ServerFileList() As FileEntry = Nothing
-        Dim LocalFileList() As FileEntry = Nothing
+        Dim ServerFileList As New List(Of FileEntry)
+        Dim LocalFileList As New List(Of FileEntry)
 
         Dim i, j As Integer
         Dim RecordCount As Integer
@@ -237,7 +236,7 @@ Public Class frmUpdaterMain
                     TempFile.MD5 = m_node.Attributes.GetNamedItem("MD5").Value
                     TempFile.URL = m_node.Attributes.GetNamedItem("URL").Value
                     ' Insert the file
-                    InsertUpdateFile(ServerFileList, TempFile)
+                    ServerFileList.Add(TempFile)
                 End If
             Next
         Else
@@ -259,7 +258,7 @@ Public Class frmUpdaterMain
                     TempFile.MD5 = m_node.Attributes.GetNamedItem("MD5").Value
                     TempFile.URL = m_node.Attributes.GetNamedItem("URL").Value
                     ' Insert the file
-                    InsertUpdateFile(LocalFileList, TempFile)
+                    LocalFileList.Add(TempFile)
                 End If
             Next
         End If
@@ -351,7 +350,7 @@ Public Class frmUpdaterMain
                     End If
                 End If
                 ' Record the file we are upating
-                InsertUpdateFile(UpdateFileList, ServerFileList(i))
+                UpdateFileList.Add(ServerFileList(i))
             End If
 
             Me.Invoke(UpdateStatusDelegate, False, "")
@@ -380,7 +379,6 @@ Public Class frmUpdaterMain
             End If
 
             ' Now that we have the files downloaded, run special updates for DB and images (Zipped), the others are just saved already
-
             If UpdateFileList(i).Name.Substring(UpdateFileList(i).Name.Length - 5) = ".s3db" Then
 
                 ' Copy the following tables before renaming
@@ -635,7 +633,7 @@ Public Class frmUpdaterMain
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) 
+                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3))
                             SQL = SQL & ")"
 
                             Call ExecuteNonQuerySQL(SQL, DBNEW)
@@ -665,7 +663,7 @@ Public Class frmUpdaterMain
                             SQL = "INSERT INTO CHARACTER_CORP_TITLES (CHARACTER_ID, TITLE_ID, TITLE_NAME) VALUES ("
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) 
+                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2))
                             SQL = SQL & ")"
 
                             Call ExecuteNonQuerySQL(SQL, DBNEW)
@@ -1016,7 +1014,7 @@ Public Class frmUpdaterMain
                             SQL = "INSERT INTO MARKET_HISTORY_UPDATE_CACHE VALUES ("
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
                             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) 
+                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2))
                             SQL = SQL & ")"
 
                             Call ExecuteNonQuerySQL(SQL, DBNEW)
@@ -2213,7 +2211,6 @@ RevertToOldFileVersions:
         If e.Cancelled = True Then
             lblUpdateMain.Text = "Update Canceled"
             Call ShowNotifyBox("Update Canceled")
-            '            MsgBox("Update Canceled", vbInformation, Application.ProductName)
         ElseIf (e.Error IsNot Nothing) Or (ProgramErrorLocation <> "") Then
 
             lblUpdateMain.Text = "Update Failed."
@@ -2252,10 +2249,9 @@ RevertToOldFileVersions:
             Directory.Delete(UPDATES_FOLDER, True)
 
             ' Wait for a second before running - might solve the problem with incorrectly suggesting an update
-            Threading.Thread.Sleep(1000)
+            Thread.Sleep(1000)
 
             Call ShowNotifyBox("Update Complete!")
-            'MsgBox("Update Complete!", vbInformation, Application.ProductName)
         End If
 
         ' Shell to program
@@ -2318,35 +2314,6 @@ RevertToOldFileVersions:
 
     End Sub
 
-    ' Inserts a file into the array
-    Private Sub InsertUpdateFile(ByRef MasterFileList() As FileEntry, ByVal UpdateFile As FileEntry)
-        Dim TempFileList() As FileEntry
-        Dim i As Integer
-
-        ' Build list of files that need updates
-        If IsNothing(MasterFileList) Then
-            ReDim MasterFileList(0)
-        Else
-            TempFileList = MasterFileList
-            ReDim MasterFileList(MasterFileList.Count)
-
-            For i = 0 To TempFileList.Count - 1
-                MasterFileList(i).Name = TempFileList(i).Name
-                MasterFileList(i).Version = TempFileList(i).Version
-                MasterFileList(i).MD5 = TempFileList(i).MD5
-                MasterFileList(i).URL = TempFileList(i).URL
-            Next
-
-        End If
-
-        ' Add file
-        MasterFileList(i).Name = UpdateFile.Name
-        MasterFileList(i).Version = UpdateFile.Version
-        MasterFileList(i).MD5 = UpdateFile.MD5
-        MasterFileList(i).URL = UpdateFile.URL
-
-    End Sub
-
     ' Downloads the sent file from server and saves it to the root directory as the sent file name
     Public Function DownloadFileFromServer(ByVal DownloadURL As String, ByVal FileName As String) As String
         'Creating the request and getting the response
@@ -2369,7 +2336,7 @@ RevertToOldFileVersions:
 
         Try 'Checks if the file exist
             Request = DirectCast(HttpWebRequest.Create(DownloadURL), HttpWebRequest)
-            Request.Proxy = GetProxyData()
+            'Request.Proxy = GetProxyData()
             Request.Credentials = CredentialCache.DefaultCredentials ' Added 9/27 to attempt to fix error: (407) Proxy Authentication Required.
             Request.Timeout = 50000
             Response = CType(Request.GetResponse, HttpWebResponse)
