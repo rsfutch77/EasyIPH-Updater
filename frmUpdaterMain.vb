@@ -284,7 +284,7 @@ Public Class frmUpdaterMain
                 ' Zip file of images or the DB, so special processing
                 ' Zip file is in a folder after update and DB will have a different MD5 after it is updated
                 ' Need to load the local MD5 data from the Local XML since the folder doesn't have one MD5
-                If Not IsNothing(LocalFileList) Then
+                If LocalFileList.Count <> 0 Then
                     For j = 0 To LocalFileList.Count - 1
                         ' Find the MD5 for the EVEDB or Image Zip file
                         If ServerFileList(i).Name = LocalFileList(j).Name Then
