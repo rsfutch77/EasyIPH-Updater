@@ -401,7 +401,6 @@ Public Class frmUpdaterMain
                 ' MARKET_ORDERS_UPDATE_CACHE
                 ' PRICE_PROFILES
 
-                ' CREST_CACHE_DATES
                 ' INDUSTRY_JOBS
                 ' ITEM_PRICES
                 ' ITEM_PRICES_CACHE
@@ -1138,53 +1137,6 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    ' CREST_CACHE_DATES
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy CREST_CACHE_DATES table"
-
-                    ' See if they have the new fields for CREST updates first
-                    SQL = "SELECT CREST_INDUSTRY_SPECIALIZATIONS_CACHED_UNTIL, CREST_INDUSTRY_TEAMS_CACHED_UNTIL, "
-                    SQL = SQL & "CREST_INDUSTRY_TEAM_AUCTIONS_CACHED_UNTIL, CREST_INDUSTRY_SYSTEMS_CACHED_UNTIL, "
-                    SQL = SQL & "CREST_INDUSTRY_FACILITIES_CACHED_UNTIL, CREST_MARKET_PRICES_CACHED_UNTIL FROM CREST_CACHE_DATES"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-
-                    ' If it didn't error, they have the fields
-                    If Err.Number = 0 Then
-                        HaveNewEVEIPHFields = True
-                    Else
-                        HaveNewEVEIPHFields = False
-                    End If
-
-                    On Error GoTo 0
-
-                    Call BeginSQLiteTransaction(DBNEW)
-
-                    ' If they have the fields, then insert
-                    If HaveNewEVEIPHFields Then
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO CREST_CACHE_DATES VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        readerUpdate.Close()
-                        readerUpdate = Nothing
-                        DBCommand = Nothing
-                    Else
-                        SQL = "INSERT INTO CREST_CACHE_DATES VALUES (NULL,NULL,NULL,NULL,NULL,NULL)"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-                    End If
-
-                    Call CommitSQLiteTransaction(DBNEW)
-
                     ' INDUSTRY_JOBS
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy Industry Jobs"
@@ -1464,60 +1416,61 @@ Public Class frmUpdaterMain
                     readerUpdate = Nothing
                     DBCommand = Nothing
 
-                    ' STATIONS
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy STATIONS Data table"
-                    SQL = "SELECT * FROM STATIONS"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
+                    ' Station update is unecessary
+                    '' STATIONS
+                    'On Error Resume Next
+                    'ProgramErrorLocation = "Cannot copy STATIONS Data table"
+                    'SQL = "SELECT * FROM STATIONS"
+                    'DBCommand = New SQLiteCommand(SQL, DBOLD)
+                    'readerUpdate = DBCommand.ExecuteReader
+                    'On Error GoTo 0
 
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
+                    '' They might not have this table yet.
+                    'If Not IsNothing(readerUpdate) Then
+                    '    Call BeginSQLiteTransaction(DBNEW)
 
-                        On Error Resume Next
-                        Dim HaveReprocessingFields As Boolean
-                        SQL = "SELECT REPROCESSING_TAX_RATE FROM STATIONS"
-                        DBCommand = New SQLiteCommand(SQL, DBOLD)
-                        readerCheck = DBCommand.ExecuteReader
-                        ' If it didn't error, they have the fields
-                        If Err.Number = 0 Then
-                            HaveReprocessingFields = True
-                            readerCheck.Close()
-                        Else
-                            HaveReprocessingFields = False
-                        End If
-                        On Error GoTo 0
+                    '    On Error Resume Next
+                    '    Dim HaveReprocessingFields As Boolean
+                    '    SQL = "SELECT REPROCESSING_TAX_RATE FROM STATIONS"
+                    '    DBCommand = New SQLiteCommand(SQL, DBOLD)
+                    '    readerCheck = DBCommand.ExecuteReader
+                    '    ' If it didn't error, they have the fields
+                    '    If Err.Number = 0 Then
+                    '        HaveReprocessingFields = True
+                    '        readerCheck.Close()
+                    '    Else
+                    '        HaveReprocessingFields = False
+                    '    End If
+                    '    On Error GoTo 0
 
-                        ' Delete all the station records first, then reload
-                        SQL = "DELETE FROM STATIONS"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
+                    '    ' Delete all the station records first, then reload
+                    '    SQL = "DELETE FROM STATIONS"
+                    '    Call ExecuteNonQuerySQL(SQL, DBNEW)
 
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO STATIONS VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                            If HaveReprocessingFields Then
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7))
-                            Else
-                                SQL = SQL & "0,0"
-                            End If
-                            SQL = SQL & ")"
+                    '    While readerUpdate.Read
+                    '        SQL = "INSERT INTO STATIONS VALUES ("
+                    '        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                    '        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                    '        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                    '        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                    '        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                    '        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                    '        If HaveReprocessingFields Then
+                    '            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                    '            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7))
+                    '        Else
+                    '            SQL = SQL & "0,0"
+                    '        End If
+                    '        SQL = SQL & ")"
 
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
+                    '        Call ExecuteNonQuerySQL(SQL, DBNEW)
 
-                        End While
+                    '    End While
 
-                        Call CommitSQLiteTransaction(DBNEW)
+                    '    Call CommitSQLiteTransaction(DBNEW)
 
-                        readerUpdate.Close()
-                    End If
+                    '    readerUpdate.Close()
+                    'End If
 
                     readerUpdate = Nothing
                     DBCommand = Nothing
