@@ -6,7 +6,6 @@ Imports System.ComponentModel
 Imports System.Data.SQLite
 Imports System.Globalization ' For culture info
 Imports System.Threading
-Imports Ionic.Zip
 
 Delegate Sub UpdateStatusSafe(ByVal pgBarVisible As Boolean, ByVal lblText As String)
 Delegate Sub UpdatePGBarSafe(ByVal pgBarValue As Integer)
@@ -72,8 +71,10 @@ Public Class frmUpdaterMain
     Public Const UpdaterFileName As String = "EVEIPH Updater.exe"
 
     ' File Path
-    Public Const XMLUpdateServerURL = "http://www.mediafire.com/download/zazw6acanj1m43x/LatestVersionIPH.xml"
-    Public Const XMLUpdateTestServerURL = "http://www.mediafire.com/download/zlkpaw8qck4qryw/LatestVersionIPH_Test.xml"
+    'Public Const XMLUpdateFileURL = "http://www.mediafire.com/download/zazw6acanj1m43x/LatestVersionIPH.xml"
+    'Public Const XMLUpdateTestFileURL = "http://www.mediafire.com/download/zlkpaw8qck4qryw/LatestVersionIPH_Test.xml"
+    Public Const XMLUpdateFileURL = "https://raw.githubusercontent.com/EVEIPH/LatestFiles/master/LatestVersionIPH.xml"
+    Public Const XMLUpdateTestFileURL = "https://github.com/EVEIPH/LatestFiles/raw/master/LatestVersionIPH_Test.xml"
 
     ' For tracking an error
     Public ProgramErrorLocation As String
@@ -215,9 +216,9 @@ Public Class frmUpdaterMain
 
         ' Get the newest update file from server
         If TestingVersion Then
-            ServerXMLLastUpdatePath = DownloadFileFromServer(XMLUpdateTestServerURL, UPDATES_FOLDER & LocalXMLFileName)
+            ServerXMLLastUpdatePath = DownloadFileFromServer(XMLUpdateTestFileURL, UPDATES_FOLDER & LocalXMLFileName)
         Else
-            ServerXMLLastUpdatePath = DownloadFileFromServer(XMLUpdateServerURL, UPDATES_FOLDER & LocalXMLFileName)
+            ServerXMLLastUpdatePath = DownloadFileFromServer(XMLUpdateFileURL, UPDATES_FOLDER & LocalXMLFileName)
         End If
 
         If ServerXMLLastUpdatePath <> "" Then
@@ -1957,10 +1958,11 @@ Public Class frmUpdaterMain
                 Me.Invoke(UpdateStatusDelegate, False, "Installing Image Updates...")
                 ProgramErrorLocation = "Cannot copy images"
 
-                Using zip = New ZipFile(UPDATES_FOLDER & UpdateFileList(i).Name)
-                    EVEImagesNewLocalFolderName = EVE_IMAGES_ZIP.Substring(0, Len(EVE_IMAGES_ZIP) - 4) ' Save as base name
-                    zip.ExtractAll(UPDATES_FOLDER & EVEImagesNewLocalFolderName)
-                End Using
+                EVEImagesNewLocalFolderName = EVE_IMAGES_ZIP.Substring(0, Len(EVE_IMAGES_ZIP) - 4) ' Save as base name
+                ' Delete if exists
+                File.Delete(UPDATES_FOLDER & EVEImagesNewLocalFolderName)
+                ' Compress the whole file for download
+                Call ZipFile.ExtractToDirectory(UPDATES_FOLDER & EVE_IMAGES_ZIP, UPDATES_FOLDER & EVEImagesNewLocalFolderName)
 
                 ProgramErrorLocation = ""
                 SQL = ""
@@ -2097,7 +2099,7 @@ RevertToOldFileVersions:
                     End If
 
                     ' Rename the old zip folder
-                    Directory.Move(ROOT_FOLDER & OLD_PREFIX & EVEImagesLocalFolderName, ROOT_FOLDER & EVEImagesLocalFolderName)
+                    Directory.Move(ROOT_FOLDER & EVEImagesLocalFolderName, ROOT_FOLDER & OLD_PREFIX & EVEImagesLocalFolderName)
                     Application.DoEvents()
 
                 ElseIf UpdateFileList(i).Name = EVE_DB Then
