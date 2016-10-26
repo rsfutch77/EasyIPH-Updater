@@ -1104,7 +1104,9 @@ Public Class frmUpdaterMain
                     ' PRICE_PROFILES
                     On Error Resume Next
                     ProgramErrorLocation = "Cannot copy Price Profiles"
-                    SQL = "SELECT * FROM PRICE_PROFILES"
+                    ' Only get the non-default entries and don't duplicate
+                    SQL = "SELECT * FROM PRICE_PROFILES WHERE ID <> 0 "
+                    SQL = "GROUP BY ID, GROUP_NAME, PRICE_TYPE, REGION_NAME, SOLAR_SYSTEM_NAME, PRICE_MODIFIER, RAW_MATERIAL"
 
                     DBCommand = New SQLiteCommand(SQL, DBOLD)
                     readerUpdate = DBCommand.ExecuteReader
