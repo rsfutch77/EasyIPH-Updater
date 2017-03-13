@@ -407,6 +407,7 @@ Public Class frmUpdaterMain
 
                     ' Open both DBs here and update through ref
                     Call ExecuteNonQuerySQL("PRAGMA synchronous = NORMAL", DBOLD)
+                    Call ExecuteNonQuerySQL("PRAGMA synchronous = NORMAL; PRAGMA auto_vacuum = FULL;", DBNEW)
 
                     Call UpdateAPITable(DBOLD, DBNEW)
                     Call UpdateAssetsTable(DBOLD, DBNEW)
