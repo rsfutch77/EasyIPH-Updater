@@ -166,7 +166,6 @@ Public Class frmUpdaterMain
         Dim ServerFileList As New List(Of FileEntry)
         Dim LocalFileList As New List(Of FileEntry)
 
-        Dim i, j As Integer
         Dim RecordCount As Integer
         Dim CheckFile As String ' For checking if the file downloads or not
         Dim UpdateComplete As Boolean = False
@@ -176,32 +175,11 @@ Public Class frmUpdaterMain
 
         ' For DB updates
         Dim DBCommand As SQLiteCommand
-        Dim readerUpdate As SQLiteDataReader
-        Dim readerCheck As SQLiteDataReader
-        Dim readerCheck2 As SQLiteDataReader
         Dim DBOLD As New SQLiteConnection
         Dim DBNEW As New SQLiteConnection
 
         ' Delegate for updating status
         Dim UpdateStatusDelegate As UpdateStatusSafe
-
-        Dim VersionNumber As Double = 0
-
-        Dim TempAccessMask As String
-        Dim TempExpDate As Date
-        Dim TempAccountType As String
-
-        Dim HavePrecentiles As Boolean = False
-        Dim HaveNewAPIFields As Boolean = False
-        Dim HaveNewEVEIPHFields As Boolean = False
-        Dim HasOldOutpostDataField As Boolean = False
-        Dim HaveNewIndustryJobsTable As Boolean = False
-        Dim HaveNewItemPricesFields As Boolean = False
-        Dim HaveNewOwnedBPTable As Boolean = False
-
-        'Create a variable tracking times
-        Dim Count As Long = 0
-        Dim Counter As Long = 0
 
         '================================================
         On Error GoTo 0
@@ -427,1524 +405,49 @@ Public Class frmUpdaterMain
                     DBNEW.ConnectionString = DATASOURCESTRING & UPDATES_FOLDER & UpdateFileList(i).Name
                     DBNEW.Open()
 
+                    ' Open both DBs here and update through ref
                     Call ExecuteNonQuerySQL("PRAGMA synchronous = NORMAL", DBOLD)
-                    Call ExecuteNonQuerySQL("PRAGMA synchronous = NORMAL", DBNEW)
-                    'Call ExecuteNonQuerySQL("PRAGMA synchronous = OFF; PRAGMA locking_mode = EXCLUSIVE; PRAGMA cache_size = 10000; PRAGMA page_size = 4096; PRAGMA temp_store = MEMORY; PRAGMA journal_mode = OFF; PRAGMA count_changes = OFF", DBNEW)
-                    Call ExecuteNonQuerySQL("PRAGMA auto_vacuum = FULL;", DBNEW) ' Keep the DB small
 
-                    ' API
-                    ProgramErrorLocation = "Cannot copy Character API"
-
-                    ' See if they have the facility and blueprint cache field values first
-                    On Error Resume Next
-                    SQL = "SELECT FACILITIES_CACHED_UNTIL FROM API"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerCheck = DBCommand.ExecuteReader
-                    ' If it didn't error, they have the fields
-                    If Err.Number = 0 Then
-                        HaveNewAPIFields = True
-                        readerCheck.Close()
-                    Else
-                        HaveNewAPIFields = False
-                    End If
-                    On Error GoTo 0
-
-                    readerCheck = Nothing
-
-                    ' Now see if they have the new API table
-                    On Error Resume Next
-                    SQL = "SELECT 'X' FROM API"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    If Not IsNothing(readerUpdate) Then
-
-                        ProgramErrorLocation = "Cannot copy API"
-                        SQL = "SELECT * FROM API"
-
-                        DBCommand = New SQLiteCommand(SQL, DBOLD)
-                        readerUpdate = DBCommand.ExecuteReader
-
-                        Call BeginSQLiteTransaction(DBNEW)
-                        While readerUpdate.Read
-
-                            SQL = "INSERT INTO API VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
-                            If HaveNewAPIFields Then
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16))
-                            Else
-                                SQL = SQL & "NULL,"
-                                SQL = SQL & "NULL"
-                            End If
-
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-
-                    Else
-                        ProgramErrorLocation = "Cannot copy API"
-                        SQL = "SELECT CACHED_UNTIL, USER_ID, API_KEY, API_TYPE, ACCESS_MASK, CHARACTER_ID, CHARACTER_NAME, "
-                        SQL = SQL & "CORPORATION_ID, CORPORATION_NAME, OVERRIDE_SKILLS, DEFAULT_CHARACTER, "
-                        SQL = SQL & "KEY_EXPIRATION_DATE, ASSETS_CACHED_UNTIL, INDUSTRY_JOBS_CACHED_UNTIL, "
-                        SQL = SQL & "RESEARCH_AGENT_CACHED_UNTIL, FACILITIES_CACHED_UNTIL, BLUEPRINTS_CACHED_UNTIL FROM CHARACTER_API"
-
-                        DBCommand = New SQLiteCommand(SQL, DBOLD)
-                        readerUpdate = DBCommand.ExecuteReader
-
-                        Call BeginSQLiteTransaction(DBNEW)
-                        While readerUpdate.Read
-
-                            SQL = "INSERT INTO API VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14))
-                            SQL = SQL & ",NULL, NULL)" ' For new facilities and blueprints cache values
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' ASSETS
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy Assets"
-                    SQL = "SELECT * FROM ASSETS"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO ASSETS (ID, ItemID, LocationID, TypeID, Quantity, Flag, Singleton, RawQuantity) VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' ASSET_LOCATIONS
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy Asset Locations"
-                    SQL = "SELECT * FROM ASSET_LOCATIONS"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO ASSET_LOCATIONS (EnumAssetType, ID, LocationID, FlagID) VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' CHARACTER_CORP_ROLES
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy Character Corporation Roles"
-                    SQL = "SELECT * FROM CHARACTER_CORP_ROLES"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO CHARACTER_CORP_ROLES (CHARACTER_ID, ROLE_TYPE, ROLE_ID, ROLE_NAME) VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                        readerUpdate = Nothing
-                        DBCommand = Nothing
-                    End If
-
-                    ' CHARACTER_CORP_TITLES
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy Character Corporation Titles"
-                    SQL = "SELECT * FROM CHARACTER_CORP_TITLES"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO CHARACTER_CORP_TITLES (CHARACTER_ID, TITLE_ID, TITLE_NAME) VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                        readerUpdate = Nothing
-                        DBCommand = Nothing
-                    End If
-
-                    ' CHARACTER_IMPLANTS
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy Character Implants"
-                    SQL = "SELECT * FROM CHARACTER_IMPLANTS"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO CHARACTER_IMPLANTS (CHARACTER_ID, JUMP_CLONE_ID, IMPLANT_ID, IMPLANT_NAME) VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                        readerUpdate = Nothing
-                        DBCommand = Nothing
-                    End If
-
-                    ' CHARACTER_JUMP_CLONES
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy Character Jump Clones"
-                    SQL = "SELECT * FROM CHARACTER_JUMP_CLONES"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO CHARACTER_JUMP_CLONES (CHARACTER_ID, JUMP_CLONE_ID, LOCATION_ID, CLONE_NAME) VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                        readerUpdate = Nothing
-                        DBCommand = Nothing
-                    End If
-
-                    ' CHARACTER_SHEET
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy Character Sheet"
-                    SQL = "SELECT * FROM CHARACTER_SHEET"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO CHARACTER_SHEET (CHARACTER_ID, CHARACTER_NAME, HOME_STATION_ID, DOB, "
-                            SQL = SQL & "RACE, BLOOD_LINE_ID, BLOOD_LINE, ANCESTRY_LINE_ID, ANCESTRY_LINE, GENDER, CORPORATION_NAME, "
-                            SQL = SQL & "CORPORATION_ID, ALLIANCE_NAME, ALLIANCE_ID, FACTION_NAME, FACTION_ID, FREE_SKILL_POINTS, "
-                            SQL = SQL & "FREE_RESPECS, CLONE_JUMP_DATE, LAST_RESPEC_DATE, LAST_TIMED_RESPEC, REMOTE_STATION_DATE, JUMP_ACTIVATION, "
-                            SQL = SQL & "JUMP_FATIGUE, JUMP_LAST_UPDATE, BALANCE, INTELLIGENCE, MEMORY, WILLPOWER, PERCEPTION, CHARISMA) VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(21)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(22)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(23)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(24)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(25)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(26)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(27)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(28)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(29)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(30))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                        readerUpdate = Nothing
-                        DBCommand = Nothing
-                    End If
-
-                    ' CHARACTER_SKILLS
-                    ProgramErrorLocation = "Cannot copy Character Skills"
-                    SQL = "SELECT * FROM CHARACTER_SKILLS"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-
-                    Call BeginSQLiteTransaction(DBNEW)
-
-                    While readerUpdate.Read
-                        SQL = "INSERT INTO CHARACTER_SKILLS VALUES ("
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6))
-                        SQL = SQL & ")"
-
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                    End While
-
-                    Call CommitSQLiteTransaction(DBNEW)
-                    readerUpdate.Close()
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' CHARACTER_STANDINGS
-                    ProgramErrorLocation = "Cannot copy Character Standings"
-                    SQL = "SELECT * FROM CHARACTER_STANDINGS"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-
-                    Call BeginSQLiteTransaction(DBNEW)
-
-                    While readerUpdate.Read
-                        SQL = "INSERT INTO CHARACTER_STANDINGS VALUES ("
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4))
-                        SQL = SQL & ")"
-
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                    End While
-
-                    Call CommitSQLiteTransaction(DBNEW)
-                    readerUpdate.Close()
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' CURRENT_RESEARCH_AGENTS
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy CURRENT_RESEARCH_AGENTS Data table"
-                    SQL = "SELECT * FROM CURRENT_RESEARCH_AGENTS"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO CURRENT_RESEARCH_AGENTS VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' EMD_ITEM_PRICE_HISTORY
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy EMD Price History"
-                    SQL = "SELECT * FROM EMD_ITEM_PRICE_HISTORY"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO EMD_ITEM_PRICE_HISTORY VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' EMD_UPDATE_HISTORY
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy EMD Update History"
-                    SQL = "SELECT * FROM EMD_UPDATE_HISTORY"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO EMD_UPDATE_HISTORY VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' MARKET_HISTORY
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy Market History"
-                    SQL = "SELECT * FROM MARKET_HISTORY"
-
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO MARKET_HISTORY VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' MARKET_HISTORY_UPDATE_CACHE
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy Market History Cache"
-                    SQL = "SELECT * FROM MARKET_HISTORY_UPDATE_CACHE"
-
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO MARKET_HISTORY_UPDATE_CACHE VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' MARKET_ORDERS
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy Market Orders"
-                    SQL = "SELECT * FROM MARKET_ORDERS"
-
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO MARKET_ORDERS VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' MARKET_ORDERS_UPDATE_CACHE
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy Market Orders"
-                    SQL = "SELECT * FROM MARKET_ORDERS_UPDATE_CACHE"
-
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO MARKET_ORDERS_UPDATE_CACHE VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' PRICE_PROFILES
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy Price Profiles"
-                    ' Only get the non-default entries and don't duplicate
-                    SQL = "SELECT * FROM PRICE_PROFILES WHERE ID <> 0 "
-                    SQL = "GROUP BY ID, GROUP_NAME, PRICE_TYPE, REGION_NAME, SOLAR_SYSTEM_NAME, PRICE_MODIFIER, RAW_MATERIAL"
-
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO PRICE_PROFILES VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' INDUSTRY_JOBS
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy Industry Jobs"
-                    SQL = "SELECT * FROM INDUSTRY_JOBS"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-
-                        ' See if they have the new or old format for industry jobs
-                        On Error Resume Next
-                        SQL = "SELECT successfulRuns FROM INDUSTRY_JOBS"
-                        DBCommand = New SQLiteCommand(SQL, DBOLD)
-                        readerCheck = DBCommand.ExecuteReader
-                        ' If it didn't error, they have the field for the old table
-                        If Err.Number = 0 Then
-                            HaveNewIndustryJobsTable = True
-                            readerCheck.Close()
-                        Else
-                            HaveNewIndustryJobsTable = False
-                        End If
-                        On Error GoTo 0
-
-                        readerCheck = Nothing
-
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        ' If they have the new table, copy if the old then just leave it blank since the api will update
-                        If HaveNewIndustryJobsTable Then
-                            ' Copy the current data
-                            While readerUpdate.Read
-                                SQL = "INSERT INTO INDUSTRY_JOBS VALUES ("
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(21)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(22)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(23)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(24)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(25)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(26)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(27)) & ","
-                                SQL = SQL & BuildInsertFieldString(CInt(readerUpdate.Item(28)))
-                                SQL = SQL & ")"
-
-                                DBCommand = New SQLiteCommand(SQL, DBNEW)
-                                DBCommand.ExecuteNonQuery()
-                                DBCommand = Nothing
-                            End While
-                        End If
-
-                        Call CommitSQLiteTransaction(DBNEW)
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' ITEM_PRICES - includes CREST Market Prices updates
-                    ProgramErrorLocation = "Cannot copy Item Prices"
-                    ' See if they have the new or old format for item prices
-                    On Error Resume Next
-                    SQL = "SELECT AVERAGE_PRICE FROM ITEM_PRICES"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerCheck = DBCommand.ExecuteReader
-                    ' If it didn't error
-                    If Err.Number = 0 Then
-                        HaveNewItemPricesFields = True
-                        readerCheck.Close()
-                    Else
-                        HaveNewItemPricesFields = False
-                    End If
-                    On Error GoTo 0
-
-                    Call BeginSQLiteTransaction(DBNEW)
-
-                    If HaveNewItemPricesFields Then
-                        SQL = "SELECT ITEM_ID, PRICE, ADJUSTED_PRICE, AVERAGE_PRICE FROM ITEM_PRICES"
-                    Else
-                        SQL = "SELECT [Item ID], [Price], 0 AS ADJUSTED_PRICE, 0 AS AVERAGE_PRICE FROM ITEM_PRICES"
-                    End If
-
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-
-                    While readerUpdate.Read
-                        SQL = "UPDATE ITEM_PRICES "
-                        SQL = SQL & "SET PRICE = " & BuildInsertFieldString(readerUpdate.GetDouble(1)) & ", "
-                        SQL = SQL & "ADJUSTED_PRICE = " & BuildInsertFieldString(readerUpdate.GetDouble(2)) & ", "
-                        SQL = SQL & "AVERAGE_PRICE = " & BuildInsertFieldString(readerUpdate.GetDouble(3)) & " "
-                        SQL = SQL & " WHERE ITEM_ID = " & BuildInsertFieldString(readerUpdate.GetValue(0))
-
-                        DBCommand = New SQLiteCommand(SQL, DBNEW)
-                        DBCommand.ExecuteNonQuery()
-                        DBCommand = Nothing
-                    End While
-
-                    Call CommitSQLiteTransaction(DBNEW)
-                    readerUpdate.Close()
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' ITEM_PRICES_CACHE
-                    ' See if they have the percentile values first
-                    ProgramErrorLocation = "Cannot copy Item Price Cache"
-
-                    On Error Resume Next
-                    SQL = "SELECT allPercentile FROM ITEM_PRICES_CACHE"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerCheck = DBCommand.ExecuteReader
-                    ' If it didn't error, they have the fields
-                    If Err.Number = 0 Then
-                        HavePrecentiles = True
-                        readerCheck.Close()
-                    Else
-                        HavePrecentiles = False
-                    End If
-                    On Error GoTo 0
-
-                    readerCheck = Nothing
-
-                    Call BeginSQLiteTransaction(DBNEW)
-
-                    If Not HavePrecentiles Then
-                        SQL = "SELECT * FROM ITEM_PRICES_CACHE"
-                        DBCommand = New SQLiteCommand(SQL, DBOLD)
-                        readerUpdate = DBCommand.ExecuteReader
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO ITEM_PRICES_CACHE VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                            SQL = SQL & "0,"
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-                            SQL = SQL & "0,"
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
-                            SQL = SQL & "0,"
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20))
-                            SQL = SQL & ")"
-
-                            DBCommand = New SQLiteCommand(SQL, DBNEW)
-                            DBCommand.ExecuteNonQuery()
-
-                        End While
-                        readerUpdate.Close()
-                    Else
-                        SQL = "SELECT * FROM ITEM_PRICES_CACHE"
-                        DBCommand = New SQLiteCommand(SQL, DBOLD)
-                        readerUpdate = DBCommand.ExecuteReader
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO ITEM_PRICES_CACHE VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                            If IsDBNull(readerUpdate.Item(7)) Then
-                                SQL = SQL & "0,"
-                            Else
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                            End If
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-                            If IsDBNull(readerUpdate.Item(7)) Then
-                                SQL = SQL & "14,"
-                            Else
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
-                            End If
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20)) & ","
-                            If IsDBNull(readerUpdate.Item(21)) Then
-                                SQL = SQL & "21,"
-                            Else
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(21)) & ","
-                            End If
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(22)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(23))
-                            SQL = SQL & ")"
-
-                            DBCommand = New SQLiteCommand(SQL, DBNEW)
-                            DBCommand.ExecuteNonQuery()
-
-                        End While
-
-                        readerUpdate.Close()
-
-                    End If
-
-                    Call CommitSQLiteTransaction(DBNEW)
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' OWNED_BLUEPRINTS
-                    ProgramErrorLocation = "Cannot copy Owned Blueprints"
-                    SQL = "SELECT * FROM OWNED_BLUEPRINTS"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-
-                    readerCheck = Nothing
-
-                    ' Copy all data over
-                    Call BeginSQLiteTransaction(DBNEW)
-                    While readerUpdate.Read
-                        SQL = "INSERT INTO OWNED_BLUEPRINTS VALUES ("
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                        SQL = SQL & BuildInsertFieldString(CInt(readerUpdate.Item(7))) & ","
-                        SQL = SQL & BuildInsertFieldString(CInt(readerUpdate.Item(8))) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-                        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14))
-                        SQL = SQL & ")"
-
-                        DBCommand = New SQLiteCommand(SQL, DBNEW)
-                        DBCommand.ExecuteNonQuery()
-                        DBCommand = Nothing
-                    End While
-
-                    Call CommitSQLiteTransaction(DBNEW)
-                    readerUpdate.Close()
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' Station update is unecessary
-                    '' STATIONS
-                    'On Error Resume Next
-                    'ProgramErrorLocation = "Cannot copy STATIONS Data table"
-                    'SQL = "SELECT * FROM STATIONS"
-                    'DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    'readerUpdate = DBCommand.ExecuteReader
-                    'On Error GoTo 0
-
-                    '' They might not have this table yet.
-                    'If Not IsNothing(readerUpdate) Then
-                    '    Call BeginSQLiteTransaction(DBNEW)
-
-                    '    On Error Resume Next
-                    '    Dim HaveReprocessingFields As Boolean
-                    '    SQL = "SELECT REPROCESSING_TAX_RATE FROM STATIONS"
-                    '    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    '    readerCheck = DBCommand.ExecuteReader
-                    '    ' If it didn't error, they have the fields
-                    '    If Err.Number = 0 Then
-                    '        HaveReprocessingFields = True
-                    '        readerCheck.Close()
-                    '    Else
-                    '        HaveReprocessingFields = False
-                    '    End If
-                    '    On Error GoTo 0
-
-                    '    ' Delete all the station records first, then reload
-                    '    SQL = "DELETE FROM STATIONS"
-                    '    Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                    '    While readerUpdate.Read
-                    '        SQL = "INSERT INTO STATIONS VALUES ("
-                    '        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                    '        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                    '        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                    '        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                    '        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                    '        SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                    '        If HaveReprocessingFields Then
-                    '            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                    '            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7))
-                    '        Else
-                    '            SQL = SQL & "0,0"
-                    '        End If
-                    '        SQL = SQL & ")"
-
-                    '        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                    '    End While
-
-                    '    Call CommitSQLiteTransaction(DBNEW)
-
-                    '    readerUpdate.Close()
-                    'End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' FW_SYSTEM_UPGRADES
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy FW_SYSTEM_UPGRADES Data table"
-                    SQL = "SELECT * FROM FW_SYSTEM_UPGRADES"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        ' Copy the table data
-                        SQL = "SELECT * FROM FW_SYSTEM_UPGRADES"
-                        DBCommand = New SQLiteCommand(SQL, DBOLD)
-                        readerUpdate = DBCommand.ExecuteReader
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO FW_SYSTEM_UPGRADES VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' NEW CREST TABLES
-
-                    ' INDUSTRY_CATEGORY_SPECIALTIES
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy INDUSTRY_CATEGORY_SPECIALTIES Data table"
-                    SQL = "SELECT * FROM INDUSTRY_CATEGORY_SPECIALTIES"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        ' Delete all the station records first, then reload
-                        SQL = "DELETE FROM INDUSTRY_CATEGORY_SPECIALTIES"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO INDUSTRY_CATEGORY_SPECIALTIES VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' INDUSTRY_FACILITIES
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy INDUSTRY_FACILITIES Data table"
-                    SQL = "SELECT * FROM INDUSTRY_FACILITIES"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        ' Delete all the station records first, then reload
-                        SQL = "DELETE FROM INDUSTRY_FACILITIES"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO INDUSTRY_FACILITIES VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' INDUSTRY_GROUP_SPECIALTIES
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy INDUSTRY_GROUP_SPECIALTIES Data table"
-                    SQL = "SELECT * FROM INDUSTRY_GROUP_SPECIALTIES"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        ' Delete all the station records first, then reload
-                        SQL = "DELETE FROM INDUSTRY_GROUP_SPECIALTIES"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO INDUSTRY_GROUP_SPECIALTIES VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' INDUSTRY_SYSTEMS_COST_INDICIES
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy INDUSTRY_SYSTEMS_COST_INDICIES Data table"
-                    SQL = "SELECT * FROM INDUSTRY_SYSTEMS_COST_INDICIES"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        ' Delete all the records first, then reload (if any)
-                        SQL = "DELETE FROM INDUSTRY_SYSTEMS_COST_INDICIES"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO INDUSTRY_SYSTEMS_COST_INDICIES VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' INDUSTRY_TEAMS
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS Data table"
-                    SQL = "SELECT * FROM INDUSTRY_TEAMS"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        ' Delete all the station records first, then reload
-                        SQL = "DELETE FROM INDUSTRY_TEAMS"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO INDUSTRY_TEAMS VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' INDUSTRY_TEAMS_AUCTIONS
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS_AUCTIONS Data table"
-                    SQL = "SELECT * FROM INDUSTRY_TEAMS_AUCTIONS"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        ' Delete all the station records first, then reload
-                        SQL = "DELETE FROM INDUSTRY_TEAMS_AUCTIONS"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO INDUSTRY_TEAMS_AUCTIONS VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' INDUSTRY_TEAMS_AUCTIONS_BIDS
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS_AUCTIONS_BIDS Data table"
-                    SQL = "SELECT * FROM INDUSTRY_TEAMS_AUCTIONS_BIDS"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        ' Delete all the station records first, then reload
-                        SQL = "DELETE FROM INDUSTRY_TEAMS_AUCTIONS_BIDS"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO INDUSTRY_TEAMS_AUCTIONS_BIDS VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' INDUSTRY_TEAMS_BONUSES
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS_BONUSES Data table"
-                    SQL = "SELECT * FROM INDUSTRY_TEAMS_BONUSES"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    On Error GoTo 0
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        ' Delete all the station records first, then reload
-                        SQL = "DELETE FROM INDUSTRY_TEAMS_BONUSES"
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        While readerUpdate.Read
-                            SQL = "INSERT INTO INDUSTRY_TEAMS_BONUSES VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5))
-                            SQL = SQL & ")"
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-                    End If
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
-
-                    ' STATION_FACILITIES
-                    On Error Resume Next
-                    ProgramErrorLocation = "Cannot copy STATION_FACILITIES Data table"
-                    SQL = "SELECT MATERIAL_MULTIPLIER FROM STATION_FACILITIES"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerCheck2 = DBCommand.ExecuteReader
-                    readerCheck2.Read()
-
-                    Dim Have6ModifierFields As Boolean
-                    ' See if they have this change to make the multiplers into 1 field instead of 2
-                    If Not IsNothing(readerCheck2) Then
-                        Have6ModifierFields = False
-                    Else
-                        Have6ModifierFields = True
-                    End If
-                    readerCheck2.Close()
-                    On Error GoTo 0
-
-                    ProgramErrorLocation = "Cannot copy STATION_FACILITIES Data table"
-
-                    SQL = " SELECT COUNT(*) FROM (SELECT DISTINCT FACILITY_ID, FACILITY_NAME, SOLAR_SYSTEM_ID, SOLAR_SYSTEM_NAME, SOLAR_SYSTEM_SECURITY, REGION_ID, REGION_NAME, "
-                    SQL = SQL & "FACILITY_TYPE_ID, FACILITY_TYPE, ACTIVITY_ID, FACILITY_TAX, "
-                    If Have6ModifierFields Then
-                        SQL = SQL & "BASE_MM, BASE_TM, BASE_CM, ADDITIONAL_MM, ADDITIONAL_TM, ADDITIONAL_CM, GROUP_ID, CATEGORY_ID, COST_INDEX, OUTPOST "
-                    Else
-                        SQL = SQL & "MATERIAL_MULTIPLIER, TIME_MULTIPLIER, COST_MULTIPLIER, GROUP_ID, CATEGORY_ID, COST_INDEX, OUTPOST "
-                    End If
-                    SQL = SQL & "FROM STATION_FACILITIES WHERE OUTPOST = 1)"
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-                    readerUpdate.Read()
-                    Count = readerUpdate.GetInt64(0)
-                    readerUpdate.Close()
-
-                    ' Copy all of the outpost data to the static station table - Make sure we dump any duplicates if they still exist
-                    SQL = "SELECT DISTINCT FACILITY_ID, FACILITY_NAME, SOLAR_SYSTEM_ID, SOLAR_SYSTEM_NAME, SOLAR_SYSTEM_SECURITY, REGION_ID, REGION_NAME, "
-                    SQL = SQL & "FACILITY_TYPE_ID, FACILITY_TYPE, ACTIVITY_ID, FACILITY_TAX, "
-                    If Have6ModifierFields Then
-                        SQL = SQL & "BASE_MM, BASE_TM, BASE_CM, ADDITIONAL_MM, ADDITIONAL_TM, ADDITIONAL_CM, GROUP_ID, CATEGORY_ID, COST_INDEX, OUTPOST "
-                    Else
-                        SQL = SQL & "MATERIAL_MULTIPLIER, TIME_MULTIPLIER, COST_MULTIPLIER, GROUP_ID, CATEGORY_ID, COST_INDEX, OUTPOST "
-                    End If
-                    SQL = SQL & "FROM STATION_FACILITIES WHERE OUTPOST = 1"
-
-                    DBCommand = New SQLiteCommand(SQL, DBOLD)
-                    readerUpdate = DBCommand.ExecuteReader
-
-                    Me.Invoke(UpdateStatusDelegate, True, "Updating Station Data...")
-                    worker.ReportProgress(Counter)
-
-                    ' They might not have this table yet.
-                    If Not IsNothing(readerUpdate) Then
-                        ' They have the new table, but need to import all the outpost data they have
-                        Call BeginSQLiteTransaction(DBNEW)
-
-                        ' Insert all the outpost data
-                        While readerUpdate.Read
-                            ' Insert
-                            SQL = "INSERT INTO STATION_FACILITIES VALUES ("
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-                            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
-                            If Have6ModifierFields Then
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11) * readerUpdate.Item(14)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12) * readerUpdate.Item(15)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13) * readerUpdate.Item(16)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20)) & ")"
-                            Else
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
-                                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ")"
-                            End If
-
-
-                            Call ExecuteNonQuerySQL(SQL, DBNEW)
-                            Counter += 1
-
-                            On Error Resume Next
-                            worker.ReportProgress(CInt(Counter / Count * 100))
-                            On Error GoTo 0
-
-                        End While
-
-                        Call CommitSQLiteTransaction(DBNEW)
-
-                        readerUpdate.Close()
-
-                    End If
-
-                    Call BeginSQLiteTransaction(DBNEW)
-
-                    ' Need to update the station_facilities table with all the old indicies so they don't load a new db with nothing (only outposts above)
-                    SQL = "SELECT DISTINCT SOLAR_SYSTEM_ID, ACTIVITY_ID, COST_INDEX FROM INDUSTRY_SYSTEMS_COST_INDICIES"
-                    DBCommand = New SQLiteCommand(SQL, DBNEW)
-                    readerUpdate = DBCommand.ExecuteReader
-
-                    While readerUpdate.Read
-                        SQL = "UPDATE STATION_FACILITIES SET COST_INDEX = " & CStr(readerUpdate.GetDouble(2)) & " "
-                        SQL = SQL & " WHERE SOLAR_SYSTEM_ID = " & CStr(readerUpdate.GetInt64(0)) & " AND ACTIVITY_ID = " & CStr(readerUpdate.GetInt32(1))
-                        Call ExecuteNonQuerySQL(SQL, DBNEW)
-                    End While
-
-                    readerUpdate.Close()
-                    Call CommitSQLiteTransaction(DBNEW)
-
-                    readerUpdate = Nothing
-                    DBCommand = Nothing
+                    Call UpdateAPITable(DBOLD, DBNEW)
+                    Call UpdateAssetsTable(DBOLD, DBNEW)
+                    Call UpdateAssetLocationsTable(DBOLD, DBNEW)
+                    Call UpdateCorpRolesTable(DBOLD, DBNEW)
+
+                    Call UpdateCharacterCorpTitlesTable(DBOLD, DBNEW)
+                    Call UpdateCharacterImplantsTable(DBOLD, DBNEW)
+                    Call UpdateCharacterJumpClonesTable(DBOLD, DBNEW)
+                    Call UpdateCharacterSheetTable(DBOLD, DBNEW)
+                    Call UpdateCharacterSkillsTable(DBOLD, DBNEW)
+                    Call UpdateCharacterStandingsTable(DBOLD, DBNEW)
+                    Call UpdateCurrentResearchAgentsTable(DBOLD, DBNEW)
+
+                    Call UpdateEMDItemPriceHistoryTable(DBOLD, DBNEW)
+                    Call UpdateEMDUpdateHistoryTable(DBOLD, DBNEW)
+
+                    Call UpdateMarketHistoryTable(DBOLD, DBNEW)
+                    Call UpdateMarketHistoryUpdateCacheTable(DBOLD, DBNEW)
+                    Call UpdateMarketOrdersTable(DBOLD, DBNEW)
+                    Call UpdateMarketOrdersUpdateCacheTable(DBOLD, DBNEW)
+                    Call UpdatePriceProfilesTable(DBOLD, DBNEW)
+
+                    Call UpdateIndustryJobsTable(DBOLD, DBNEW)
+
+                    Call UpdateItemPricesTable(DBOLD, DBNEW)
+                    Call UpdateItemPricesCacheTable(DBOLD, DBNEW)
+
+                    Call UpdateOwnedBlueprintsTable(DBOLD, DBNEW)
+                    Call UpdateFWSystemUpgradesTable(DBOLD, DBNEW)
+
+                    Call UpdateIndustryCategorySpecialtiesTable(DBOLD, DBNEW)
+                    Call UpdateIndustryFacilitiesTable(DBOLD, DBNEW)
+                    Call UpdateIndustryGroupSpecialtiesTable(DBOLD, DBNEW)
+                    Call UpdateIndustrySystemCostIndiciesTable(DBOLD, DBNEW)
+                    Call UpdateIndustryTeamsTable(DBOLD, DBNEW)
+                    Call UpdateIndustryTeamsAuctionsTable(DBOLD, DBNEW)
+                    Call UpdateIndustryTeamsAuctionsBidsTable(DBOLD, DBNEW)
+                    Call UpdateIndustryTeamsBonusesTable(DBOLD, DBNEW)
+
+                    Call UpdateStationFacilitiesTable(DBOLD, DBNEW)
 
                     DBOLD.Close()
                     DBNEW.Close()
@@ -2220,6 +723,7 @@ RevertToOldFileVersions:
 
         On Error Resume Next
         ' Done
+        Me.Hide()
         End
 
     End Sub
@@ -2523,5 +1027,1688 @@ RevertToOldFileVersions:
         Return Nothing
 
     End Function
+
+#Region "Database Table Updates"
+
+    Private Sub UpdateAPITable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerCheck As SQLiteDataReader
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+        Dim HaveNewAPIFields As Boolean
+
+        ' API
+        ProgramErrorLocation = "Cannot copy Character API"
+
+        ' See if they have the facility and blueprint cache field values first
+        On Error Resume Next
+        SQL = "SELECT FACILITIES_CACHED_UNTIL FROM API"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerCheck = DBCommand.ExecuteReader
+
+        ' If it didn't error, they have the fields
+        If Err.Number = 0 Then
+            HaveNewAPIFields = True
+            readerCheck.Close()
+        Else
+            HaveNewAPIFields = False
+        End If
+        On Error GoTo 0
+
+        readerCheck = Nothing
+
+        ' Now see if they have the new API table
+        On Error Resume Next
+        SQL = "SELECT 'X' FROM API"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        If Not IsNothing(readerUpdate) Then
+
+            SQL = "SELECT * FROM API"
+
+            DBCommand = New SQLiteCommand(SQL, DBOLD)
+            readerUpdate = DBCommand.ExecuteReader
+
+            Call BeginSQLiteTransaction(DBNEW)
+            While readerUpdate.Read
+
+                SQL = "INSERT INTO API VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
+                If HaveNewAPIFields Then
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16))
+                Else
+                    SQL = SQL & "NULL,"
+                    SQL = SQL & "NULL"
+                End If
+
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+
+        Else
+
+            SQL = "SELECT CACHED_UNTIL, USER_ID, API_KEY, API_TYPE, ACCESS_MASK, CHARACTER_ID, CHARACTER_NAME, "
+            SQL = SQL & "CORPORATION_ID, CORPORATION_NAME, OVERRIDE_SKILLS, DEFAULT_CHARACTER, "
+            SQL = SQL & "KEY_EXPIRATION_DATE, ASSETS_CACHED_UNTIL, INDUSTRY_JOBS_CACHED_UNTIL, "
+            SQL = SQL & "RESEARCH_AGENT_CACHED_UNTIL, FACILITIES_CACHED_UNTIL, BLUEPRINTS_CACHED_UNTIL FROM CHARACTER_API"
+
+            DBCommand = New SQLiteCommand(SQL, DBOLD)
+            readerUpdate = DBCommand.ExecuteReader
+
+            Call BeginSQLiteTransaction(DBNEW)
+            While readerUpdate.Read
+
+                SQL = "INSERT INTO API VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14))
+                SQL = SQL & ",NULL, NULL)" ' For new facilities and blueprints cache values
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateAssetsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' ASSETS
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy Assets"
+        SQL = "SELECT * FROM ASSETS"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+            Call BeginSQLiteTransaction(DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO ASSETS (ID, ItemID, LocationID, TypeID, Quantity, Flag, Singleton, RawQuantity) VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateAssetLocationsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' ASSET_LOCATIONS
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy Asset Locations"
+        SQL = "SELECT * FROM ASSET_LOCATIONS"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+            Call BeginSQLiteTransaction(DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO ASSET_LOCATIONS (EnumAssetType, ID, LocationID, FlagID) VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateCorpRolesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' CHARACTER_CORP_ROLES
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy Character Corporation Roles"
+        SQL = "SELECT * FROM CHARACTER_CORP_ROLES"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+            Call BeginSQLiteTransaction(DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO CHARACTER_CORP_ROLES (CHARACTER_ID, ROLE_TYPE, ROLE_ID, ROLE_NAME) VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+            readerUpdate = Nothing
+            DBCommand = Nothing
+        End If
+    End Sub
+
+    Private Sub UpdateCharacterCorpTitlesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' CHARACTER_CORP_TITLES
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy Character Corporation Titles"
+        SQL = "SELECT * FROM CHARACTER_CORP_TITLES"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+            Call BeginSQLiteTransaction(DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO CHARACTER_CORP_TITLES (CHARACTER_ID, TITLE_ID, TITLE_NAME) VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+            readerUpdate = Nothing
+            DBCommand = Nothing
+        End If
+
+    End Sub
+
+    Private Sub UpdateCharacterImplantsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' CHARACTER_IMPLANTS
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy Character Implants"
+        SQL = "SELECT * FROM CHARACTER_IMPLANTS"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+            Call BeginSQLiteTransaction(DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO CHARACTER_IMPLANTS (CHARACTER_ID, JUMP_CLONE_ID, IMPLANT_ID, IMPLANT_NAME) VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+            readerUpdate = Nothing
+            DBCommand = Nothing
+        End If
+
+    End Sub
+
+    Private Sub UpdateCharacterJumpClonesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' CHARACTER_JUMP_CLONES
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy Character Jump Clones"
+        SQL = "SELECT * FROM CHARACTER_JUMP_CLONES"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+            Call BeginSQLiteTransaction(DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO CHARACTER_JUMP_CLONES (CHARACTER_ID, JUMP_CLONE_ID, LOCATION_ID, TYPE_ID, CLONE_NAME) VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+            readerUpdate = Nothing
+            DBCommand = Nothing
+        End If
+    End Sub
+
+    Private Sub UpdateCharacterSheetTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' CHARACTER_SHEET
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy Character Sheet"
+        SQL = "SELECT * FROM CHARACTER_SHEET"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+            Call BeginSQLiteTransaction(DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO CHARACTER_SHEET (CHARACTER_ID, CHARACTER_NAME, HOME_STATION_ID, DOB, "
+                SQL = SQL & "RACE, BLOOD_LINE_ID, BLOOD_LINE, ANCESTRY_LINE_ID, ANCESTRY_LINE, GENDER, CORPORATION_NAME, "
+                SQL = SQL & "CORPORATION_ID, ALLIANCE_NAME, ALLIANCE_ID, FACTION_NAME, FACTION_ID, FREE_SKILL_POINTS, "
+                SQL = SQL & "FREE_RESPECS, CLONE_JUMP_DATE, LAST_RESPEC_DATE, LAST_TIMED_RESPEC, REMOTE_STATION_DATE, JUMP_ACTIVATION, "
+                SQL = SQL & "JUMP_FATIGUE, JUMP_LAST_UPDATE, BALANCE, INTELLIGENCE, MEMORY, WILLPOWER, PERCEPTION, CHARISMA) VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(21)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(22)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(23)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(24)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(25)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(26)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(27)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(28)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(29)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(30))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+            readerUpdate = Nothing
+            DBCommand = Nothing
+        End If
+    End Sub
+
+    Private Sub UpdateCharacterSkillsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' CHARACTER_SKILLS
+        ProgramErrorLocation = "Cannot copy Character Skills"
+        SQL = "SELECT * FROM CHARACTER_SKILLS"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+
+        Call BeginSQLiteTransaction(DBNEW)
+
+        While readerUpdate.Read
+            SQL = "INSERT INTO CHARACTER_SKILLS VALUES ("
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6))
+            SQL = SQL & ")"
+
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+        End While
+
+        Call CommitSQLiteTransaction(DBNEW)
+        readerUpdate.Close()
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateCharacterStandingsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' CHARACTER_STANDINGS
+        ProgramErrorLocation = "Cannot copy Character Standings"
+        SQL = "SELECT * FROM CHARACTER_STANDINGS"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+
+        Call BeginSQLiteTransaction(DBNEW)
+
+        While readerUpdate.Read
+            SQL = "INSERT INTO CHARACTER_STANDINGS VALUES ("
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4))
+            SQL = SQL & ")"
+
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+        End While
+
+        Call CommitSQLiteTransaction(DBNEW)
+        readerUpdate.Close()
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Public Sub UpdateCurrentResearchAgentsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' CURRENT_RESEARCH_AGENTS
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy CURRENT_RESEARCH_AGENTS Data table"
+        SQL = "SELECT * FROM CURRENT_RESEARCH_AGENTS"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+            Call BeginSQLiteTransaction(DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO CURRENT_RESEARCH_AGENTS VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+    End Sub
+
+    Private Sub UpdateEMDItemPriceHistoryTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' EMD_ITEM_PRICE_HISTORY
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy EMD Price History"
+        SQL = "SELECT * FROM EMD_ITEM_PRICE_HISTORY"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+
+            Call BeginSQLiteTransaction(DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO EMD_ITEM_PRICE_HISTORY VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateEMDUpdateHistoryTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' EMD_UPDATE_HISTORY
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy EMD Update History"
+        SQL = "SELECT * FROM EMD_UPDATE_HISTORY"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+            Call BeginSQLiteTransaction(DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO EMD_UPDATE_HISTORY VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+    End Sub
+
+    Private Sub UpdateMarketHistoryTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' MARKET_HISTORY
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy Market History"
+        SQL = "SELECT * FROM MARKET_HISTORY"
+
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+
+            Call BeginSQLiteTransaction(DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO MARKET_HISTORY VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateMarketHistoryUpdateCacheTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' MARKET_HISTORY_UPDATE_CACHE
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy Market History Cache"
+        SQL = "SELECT * FROM MARKET_HISTORY_UPDATE_CACHE"
+
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+
+            Call BeginSQLiteTransaction(DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO MARKET_HISTORY_UPDATE_CACHE VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateMarketOrdersTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' MARKET_ORDERS
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy Market Orders"
+        SQL = "SELECT * FROM MARKET_ORDERS"
+
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+
+            Call BeginSQLiteTransaction(DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO MARKET_ORDERS VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateMarketOrdersUpdateCacheTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' MARKET_ORDERS_UPDATE_CACHE
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy Market Orders"
+        SQL = "SELECT * FROM MARKET_ORDERS_UPDATE_CACHE"
+
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+
+            Call BeginSQLiteTransaction(DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO MARKET_ORDERS_UPDATE_CACHE VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdatePriceProfilesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' PRICE_PROFILES
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy Price Profiles"
+        ' Only get the non-default entries and don't duplicate
+        SQL = "SELECT * FROM PRICE_PROFILES WHERE ID <> 0 "
+        SQL = "GROUP BY ID, GROUP_NAME, PRICE_TYPE, REGION_NAME, SOLAR_SYSTEM_NAME, PRICE_MODIFIER, RAW_MATERIAL"
+
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+
+            Call BeginSQLiteTransaction(DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO PRICE_PROFILES VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateIndustryJobsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerCheck As SQLiteDataReader
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+        Dim HaveNewIndustryJobsTable As Boolean
+
+        ' INDUSTRY_JOBS
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy Industry Jobs"
+        SQL = "SELECT * FROM INDUSTRY_JOBS"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+
+            ' See if they have the new or old format for industry jobs
+            On Error Resume Next
+            SQL = "SELECT successfulRuns FROM INDUSTRY_JOBS"
+            DBCommand = New SQLiteCommand(SQL, DBOLD)
+            readerCheck = DBCommand.ExecuteReader
+            ' If it didn't error, they have the field for the old table
+            If Err.Number = 0 Then
+                HaveNewIndustryJobsTable = True
+                readerCheck.Close()
+            Else
+                HaveNewIndustryJobsTable = False
+            End If
+            On Error GoTo 0
+
+            readerCheck = Nothing
+
+            Call BeginSQLiteTransaction(DBNEW)
+
+            ' If they have the new table, copy if the old then just leave it blank since the api will update
+            If HaveNewIndustryJobsTable Then
+                ' Copy the current data
+                While readerUpdate.Read
+                    SQL = "INSERT INTO INDUSTRY_JOBS VALUES ("
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(21)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(22)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(23)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(24)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(25)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(26)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(27)) & ","
+                    SQL = SQL & BuildInsertFieldString(CInt(readerUpdate.Item(28)))
+                    SQL = SQL & ")"
+
+                    DBCommand = New SQLiteCommand(SQL, DBNEW)
+                    DBCommand.ExecuteNonQuery()
+                    DBCommand = Nothing
+                End While
+            End If
+
+            Call CommitSQLiteTransaction(DBNEW)
+            readerUpdate.Close()
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateItemPricesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerCheck As SQLiteDataReader
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+        Dim HaveNewItemPricesFields As Boolean
+
+        ' ITEM_PRICES - includes CREST Market Prices updates
+        ProgramErrorLocation = "Cannot copy Item Prices"
+        ' See if they have the new or old format for item prices
+        On Error Resume Next
+        SQL = "SELECT AVERAGE_PRICE FROM ITEM_PRICES"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerCheck = DBCommand.ExecuteReader
+        ' If it didn't error
+        If Err.Number = 0 Then
+            HaveNewItemPricesFields = True
+            readerCheck.Close()
+        Else
+            HaveNewItemPricesFields = False
+        End If
+        On Error GoTo 0
+
+        Call BeginSQLiteTransaction(DBNEW)
+
+        If HaveNewItemPricesFields Then
+            SQL = "SELECT ITEM_ID, PRICE, ADJUSTED_PRICE, AVERAGE_PRICE FROM ITEM_PRICES"
+        Else
+            SQL = "SELECT [Item ID], [Price], 0 AS ADJUSTED_PRICE, 0 AS AVERAGE_PRICE FROM ITEM_PRICES"
+        End If
+
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+
+        While readerUpdate.Read
+            SQL = "UPDATE ITEM_PRICES "
+            SQL = SQL & "SET PRICE = " & BuildInsertFieldString(readerUpdate.GetDouble(1)) & ", "
+            SQL = SQL & "ADJUSTED_PRICE = " & BuildInsertFieldString(readerUpdate.GetDouble(2)) & ", "
+            SQL = SQL & "AVERAGE_PRICE = " & BuildInsertFieldString(readerUpdate.GetDouble(3)) & " "
+            SQL = SQL & " WHERE ITEM_ID = " & BuildInsertFieldString(readerUpdate.GetValue(0))
+
+            DBCommand = New SQLiteCommand(SQL, DBNEW)
+            DBCommand.ExecuteNonQuery()
+            DBCommand = Nothing
+        End While
+
+        Call CommitSQLiteTransaction(DBNEW)
+        readerUpdate.Close()
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateItemPricesCacheTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerCheck As SQLiteDataReader
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+        Dim HavePrecentiles As Boolean
+
+        ' ITEM_PRICES_CACHE
+        ' See if they have the percentile values first
+        ProgramErrorLocation = "Cannot copy Item Price Cache"
+
+        On Error Resume Next
+        SQL = "SELECT allPercentile FROM ITEM_PRICES_CACHE"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerCheck = DBCommand.ExecuteReader
+        ' If it didn't error, they have the fields
+        If Err.Number = 0 Then
+            HavePrecentiles = True
+            readerCheck.Close()
+        Else
+            HavePrecentiles = False
+        End If
+        On Error GoTo 0
+
+        readerCheck = Nothing
+
+        Call BeginSQLiteTransaction(DBNEW)
+
+        If Not HavePrecentiles Then
+            SQL = "SELECT * FROM ITEM_PRICES_CACHE"
+            DBCommand = New SQLiteCommand(SQL, DBOLD)
+            readerUpdate = DBCommand.ExecuteReader
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO ITEM_PRICES_CACHE VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                SQL = SQL & "0,"
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
+                SQL = SQL & "0,"
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
+                SQL = SQL & "0,"
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20))
+                SQL = SQL & ")"
+
+                DBCommand = New SQLiteCommand(SQL, DBNEW)
+                DBCommand.ExecuteNonQuery()
+
+            End While
+            readerUpdate.Close()
+        Else
+            SQL = "SELECT * FROM ITEM_PRICES_CACHE"
+            DBCommand = New SQLiteCommand(SQL, DBOLD)
+            readerUpdate = DBCommand.ExecuteReader
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO ITEM_PRICES_CACHE VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                If IsDBNull(readerUpdate.Item(7)) Then
+                    SQL = SQL & "0,"
+                Else
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
+                End If
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
+                If IsDBNull(readerUpdate.Item(7)) Then
+                    SQL = SQL & "14,"
+                Else
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
+                End If
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20)) & ","
+                If IsDBNull(readerUpdate.Item(21)) Then
+                    SQL = SQL & "21,"
+                Else
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(21)) & ","
+                End If
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(22)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(23))
+                SQL = SQL & ")"
+
+                DBCommand = New SQLiteCommand(SQL, DBNEW)
+                DBCommand.ExecuteNonQuery()
+
+            End While
+
+            readerUpdate.Close()
+
+        End If
+
+        Call CommitSQLiteTransaction(DBNEW)
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+    End Sub
+
+    Private Sub UpdateOwnedBlueprintsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' OWNED_BLUEPRINTS
+        ProgramErrorLocation = "Cannot copy Owned Blueprints"
+        SQL = "SELECT * FROM OWNED_BLUEPRINTS"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+
+        ' Copy all data over
+        Call BeginSQLiteTransaction(DBNEW)
+        While readerUpdate.Read
+            SQL = "INSERT INTO OWNED_BLUEPRINTS VALUES ("
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+            SQL = SQL & BuildInsertFieldString(CInt(readerUpdate.Item(7))) & ","
+            SQL = SQL & BuildInsertFieldString(CInt(readerUpdate.Item(8))) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14))
+            SQL = SQL & ")"
+
+            DBCommand = New SQLiteCommand(SQL, DBNEW)
+            DBCommand.ExecuteNonQuery()
+            DBCommand = Nothing
+        End While
+
+        Call CommitSQLiteTransaction(DBNEW)
+        readerUpdate.Close()
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+    Private Sub UpdateFWSystemUpgradesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' FW_SYSTEM_UPGRADES
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy FW_SYSTEM_UPGRADES Data table"
+        SQL = "SELECT * FROM FW_SYSTEM_UPGRADES"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+            Call BeginSQLiteTransaction(DBNEW)
+
+            ' Copy the table data
+            SQL = "SELECT * FROM FW_SYSTEM_UPGRADES"
+            DBCommand = New SQLiteCommand(SQL, DBOLD)
+            readerUpdate = DBCommand.ExecuteReader
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO FW_SYSTEM_UPGRADES VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateIndustryCategorySpecialtiesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' INDUSTRY_CATEGORY_SPECIALTIES
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy INDUSTRY_CATEGORY_SPECIALTIES Data table"
+        SQL = "SELECT * FROM INDUSTRY_CATEGORY_SPECIALTIES"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+            Call BeginSQLiteTransaction(DBNEW)
+
+            ' Delete all the station records first, then reload
+            SQL = "DELETE FROM INDUSTRY_CATEGORY_SPECIALTIES"
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO INDUSTRY_CATEGORY_SPECIALTIES VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+    Private Sub UpdateIndustryFacilitiesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' INDUSTRY_FACILITIES
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy INDUSTRY_FACILITIES Data table"
+        SQL = "SELECT * FROM INDUSTRY_FACILITIES"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+            Call BeginSQLiteTransaction(DBNEW)
+
+            ' Delete all the station records first, then reload
+            SQL = "DELETE FROM INDUSTRY_FACILITIES"
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO INDUSTRY_FACILITIES VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+    Private Sub UpdateIndustryGroupSpecialtiesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' INDUSTRY_GROUP_SPECIALTIES
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy INDUSTRY_GROUP_SPECIALTIES Data table"
+        SQL = "SELECT * FROM INDUSTRY_GROUP_SPECIALTIES"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+            Call BeginSQLiteTransaction(DBNEW)
+
+            ' Delete all the station records first, then reload
+            SQL = "DELETE FROM INDUSTRY_GROUP_SPECIALTIES"
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO INDUSTRY_GROUP_SPECIALTIES VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+    Private Sub UpdateIndustrySystemCostIndiciesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' INDUSTRY_SYSTEMS_COST_INDICIES
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy INDUSTRY_SYSTEMS_COST_INDICIES Data table"
+        SQL = "SELECT * FROM INDUSTRY_SYSTEMS_COST_INDICIES"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+            Call BeginSQLiteTransaction(DBNEW)
+
+            ' Delete all the records first, then reload (if any)
+            SQL = "DELETE FROM INDUSTRY_SYSTEMS_COST_INDICIES"
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO INDUSTRY_SYSTEMS_COST_INDICIES VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+    Private Sub UpdateIndustryTeamsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' INDUSTRY_TEAMS
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS Data table"
+        SQL = "SELECT * FROM INDUSTRY_TEAMS"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+            Call BeginSQLiteTransaction(DBNEW)
+
+            ' Delete all the station records first, then reload
+            SQL = "DELETE FROM INDUSTRY_TEAMS"
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO INDUSTRY_TEAMS VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+    Private Sub UpdateIndustryTeamsAuctionsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' INDUSTRY_TEAMS_AUCTIONS
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS_AUCTIONS Data table"
+        SQL = "SELECT * FROM INDUSTRY_TEAMS_AUCTIONS"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+            Call BeginSQLiteTransaction(DBNEW)
+
+            ' Delete all the station records first, then reload
+            SQL = "DELETE FROM INDUSTRY_TEAMS_AUCTIONS"
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO INDUSTRY_TEAMS_AUCTIONS VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+    Private Sub UpdateIndustryTeamsAuctionsBidsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' INDUSTRY_TEAMS_AUCTIONS_BIDS
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS_AUCTIONS_BIDS Data table"
+        SQL = "SELECT * FROM INDUSTRY_TEAMS_AUCTIONS_BIDS"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+            Call BeginSQLiteTransaction(DBNEW)
+
+            ' Delete all the station records first, then reload
+            SQL = "DELETE FROM INDUSTRY_TEAMS_AUCTIONS_BIDS"
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO INDUSTRY_TEAMS_AUCTIONS_BIDS VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+    Private Sub UpdateIndustryTeamsBonusesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' INDUSTRY_TEAMS_BONUSES
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS_BONUSES Data table"
+        SQL = "SELECT * FROM INDUSTRY_TEAMS_BONUSES"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+            Call BeginSQLiteTransaction(DBNEW)
+
+            ' Delete all the station records first, then reload
+            SQL = "DELETE FROM INDUSTRY_TEAMS_BONUSES"
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            While readerUpdate.Read
+                SQL = "INSERT INTO INDUSTRY_TEAMS_BONUSES VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5))
+                SQL = SQL & ")"
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+        End If
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateStationFacilitiesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        'Create a variable tracking times
+        Dim Count As Long = 0
+        Dim Counter As Long = 0
+
+        ' Delegate for updating status
+        Dim UpdateStatusDelegate As UpdateStatusSafe
+
+        ' STATION_FACILITIES
+        On Error Resume Next
+        ProgramErrorLocation = "Cannot copy STATION_FACILITIES Data table"
+        SQL = "SELECT MATERIAL_MULTIPLIER FROM STATION_FACILITIES"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        readerUpdate.Read()
+
+        Dim Have6ModifierFields As Boolean
+        ' See if they have this change to make the multiplers into 1 field instead of 2
+        If Not IsNothing(readerUpdate) Then
+            Have6ModifierFields = False
+        Else
+            Have6ModifierFields = True
+        End If
+        readerUpdate.Close()
+        On Error GoTo 0
+
+        ProgramErrorLocation = "Cannot copy STATION_FACILITIES Data table"
+
+        SQL = " SELECT COUNT(*) FROM (SELECT DISTINCT FACILITY_ID, FACILITY_NAME, SOLAR_SYSTEM_ID, SOLAR_SYSTEM_NAME, SOLAR_SYSTEM_SECURITY, REGION_ID, REGION_NAME, "
+        SQL = SQL & "FACILITY_TYPE_ID, FACILITY_TYPE, ACTIVITY_ID, FACILITY_TAX, "
+        If Have6ModifierFields Then
+            SQL = SQL & "BASE_MM, BASE_TM, BASE_CM, ADDITIONAL_MM, ADDITIONAL_TM, ADDITIONAL_CM, GROUP_ID, CATEGORY_ID, COST_INDEX, OUTPOST "
+        Else
+            SQL = SQL & "MATERIAL_MULTIPLIER, TIME_MULTIPLIER, COST_MULTIPLIER, GROUP_ID, CATEGORY_ID, COST_INDEX, OUTPOST "
+        End If
+        SQL = SQL & "FROM STATION_FACILITIES WHERE OUTPOST = 1)"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        readerUpdate.Read()
+        Count = readerUpdate.GetInt64(0)
+        readerUpdate.Close()
+
+        ' Copy all of the outpost data to the static station table - Make sure we dump any duplicates if they still exist
+        SQL = "SELECT DISTINCT FACILITY_ID, FACILITY_NAME, SOLAR_SYSTEM_ID, SOLAR_SYSTEM_NAME, SOLAR_SYSTEM_SECURITY, REGION_ID, REGION_NAME, "
+        SQL = SQL & "FACILITY_TYPE_ID, FACILITY_TYPE, ACTIVITY_ID, FACILITY_TAX, "
+        If Have6ModifierFields Then
+            SQL = SQL & "BASE_MM, BASE_TM, BASE_CM, ADDITIONAL_MM, ADDITIONAL_TM, ADDITIONAL_CM, GROUP_ID, CATEGORY_ID, COST_INDEX, OUTPOST "
+        Else
+            SQL = SQL & "MATERIAL_MULTIPLIER, TIME_MULTIPLIER, COST_MULTIPLIER, GROUP_ID, CATEGORY_ID, COST_INDEX, OUTPOST "
+        End If
+        SQL = SQL & "FROM STATION_FACILITIES WHERE OUTPOST = 1"
+
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+
+        UpdateStatusDelegate = New UpdateStatusSafe(AddressOf UpdateStatus)
+        Me.Invoke(UpdateStatusDelegate, True, "Updating Station Data...")
+        worker.ReportProgress(Counter)
+
+        ' They might not have this table yet.
+        If Not IsNothing(readerUpdate) Then
+            ' They have the new table, but need to import all the outpost data they have
+            Call BeginSQLiteTransaction(DBNEW)
+
+            ' Insert all the outpost data
+            While readerUpdate.Read
+                ' Insert
+                SQL = "INSERT INTO STATION_FACILITIES VALUES ("
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
+                If Have6ModifierFields Then
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11) * readerUpdate.Item(14)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12) * readerUpdate.Item(15)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13) * readerUpdate.Item(16)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20)) & ")"
+                Else
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
+                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ")"
+                End If
+
+
+                Call ExecuteNonQuerySQL(SQL, DBNEW)
+                Counter += 1
+
+                On Error Resume Next
+                worker.ReportProgress(CInt(Counter / Count * 100))
+                On Error GoTo 0
+
+            End While
+
+            Call CommitSQLiteTransaction(DBNEW)
+
+            readerUpdate.Close()
+
+        End If
+
+        Call BeginSQLiteTransaction(DBNEW)
+
+        ' Need to update the station_facilities table with all the old indicies so they don't load a new db with nothing (only outposts above)
+        SQL = "SELECT DISTINCT SOLAR_SYSTEM_ID, ACTIVITY_ID, COST_INDEX FROM INDUSTRY_SYSTEMS_COST_INDICIES"
+        DBCommand = New SQLiteCommand(SQL, DBNEW)
+        readerUpdate = DBCommand.ExecuteReader
+
+        While readerUpdate.Read
+            SQL = "UPDATE STATION_FACILITIES SET COST_INDEX = " & CStr(readerUpdate.GetDouble(2)) & " "
+            SQL = SQL & " WHERE SOLAR_SYSTEM_ID = " & CStr(readerUpdate.GetInt64(0)) & " AND ACTIVITY_ID = " & CStr(readerUpdate.GetInt32(1))
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+        End While
+
+        readerUpdate.Close()
+        Call CommitSQLiteTransaction(DBNEW)
+
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+
+#End Region
 
 End Class
