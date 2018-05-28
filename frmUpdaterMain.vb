@@ -27,13 +27,6 @@ Public Class frmUpdaterMain
         TypeLong = 5
     End Enum
 
-
-    Private Const AppSettingsFileName As String = "ApplicationSettings"
-    Private Const SettingsFolder As String = "Settings/"
-    Private Const XMLfileType As String = ".xml"
-    Private Const DefaultProxyAddress As String = ""
-    Private Const DefaultProxyPort As Integer = 0
-
 #Region "Delegate Functions"
 
     Private Property HaveReprocessingFields As Boolean
@@ -59,7 +52,7 @@ Public Class frmUpdaterMain
 #End Region
 
     ' Worker
-    Public worker As BackgroundWorker
+    Public Worker As BackgroundWorker
     Public TestingVersion As Boolean ' For testing downloads from the server for a new update
     Public LocalXMLFileName As String
 
@@ -71,8 +64,6 @@ Public Class frmUpdaterMain
     Public Const UpdaterFileName As String = "EVEIPH Updater.exe"
 
     ' File Path
-    'Public Const XMLUpdateFileURL = "http://www.mediafire.com/download/zazw6acanj1m43x/LatestVersionIPH.xml"
-    'Public Const XMLUpdateTestFileURL = "http://www.mediafire.com/download/zlkpaw8qck4qryw/LatestVersionIPH_Test.xml"
     Public Const XMLUpdateFileURL = "https://raw.githubusercontent.com/EVEIPH/LatestFiles/master/LatestVersionIPH.xml"
     Public Const XMLUpdateTestFileURL = "https://github.com/EVEIPH/LatestFiles/raw/master/LatestVersionIPH_Test.xml"
 
@@ -81,18 +72,21 @@ Public Class frmUpdaterMain
     Public SQL As String ' Keep global so I can put in error log
     Public ThrownError As String
 
-    Public UPDATES_FOLDER As String ' Where Updates will take place 
-    Public ROOT_FOLDER As String ' Where the root folder is located
+    Public AppDataRoamingFolder As String ' Where the dynamic files are located
+    Public ROOT_FOLDER As String ' Where the root folder is located, that has the IPH exe and other files we can update that are not dynamically updated in IPH
     Public EVEIPH_SHELL_PATH As String ' Where to shell back to
+    Public Const TempUpdatePath As String = "EVE IPH Updates" ' Where Updates will be downloaded to and moved to the main directories
+    Public Const DynamicAppDataPath As String = "EVE IPH"
 
-    Public Const EVE_DB As String = "EVEIPH DB.s3db"
+    Dim DBOLD As New SQLiteConnection
+    Dim DBNEW As New SQLiteConnection
+
+    Public Const EVE_DB As String = "EVEIPH DB.sqlite"
     Public Const EVE_IMAGES_ZIP As String = "EVEIPH Images.zip"
     Public Const EVEIPH_EXE As String = "EVE Isk per Hour.exe" ' For Shelling
 
     Public Const DATASOURCESTRING As String = "Data source="
-
     Public Const NO_LOCAL_XML_FILE As String = "NO LOCAL XML FILE"
-
     Public Const OLD_PREFIX As String = "OLD_"
 
     Public LocalCulture As New CultureInfo("en-US")
@@ -103,55 +97,72 @@ Public Class frmUpdaterMain
         ' This call is required by the designer.
         InitializeComponent()
 
-        ' Add any initialization after the InitializeComponent() call.
+        Try
+            ' Find out if we are running all in the current folder with the EXE or with updates and the DB in the appdata folder
+            If File.Exists(EVEIPH_EXE) Then
+                ' Single folder, so set the path variables to it
+                AppDataRoamingFolder = ""
+            Else
+                ' They ran the installer (or we assume they did) and all the files are updated in the appdata/roaming folder
+                AppDataRoamingFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), DynamicAppDataPath)
+            End If
 
-        ' Update folder path
-        UPDATES_FOLDER = "Updates\"
-        ROOT_FOLDER = ""
+            ' The root folder where the exe is located and other files we want to update - this is the installation directory
+            ROOT_FOLDER = ""
 
-        ' Set test platform
-        If File.Exists("Test.txt") Then
-            TestingVersion = True
-        Else
-            TestingVersion = False
-        End If
+            ' Get the operating folder from arguments set when shelled
+            If Environment.GetCommandLineArgs.Count > 1 Then ' First argument is the filename of the executing program
+                For i = 1 To Environment.GetCommandLineArgs.Count - 1
+                    ROOT_FOLDER &= Environment.GetCommandLineArgs(i).ToString & " "
+                Next
+            End If
 
-        EVEIPH_SHELL_PATH = ROOT_FOLDER & EVEIPH_EXE
+            EVEIPH_SHELL_PATH = Path.Combine(ROOT_FOLDER, EVEIPH_EXE)
 
-        ' Set the version of the XML file we will use
-        If TestingVersion Then
-            LocalXMLFileName = XMLLatestVersionTest
-        Else
-            LocalXMLFileName = XMLLatestVersionFileName
-        End If
+            ' Set test platform
+            If File.Exists("Test.txt") Then
+                TestingVersion = True
+            Else
+                TestingVersion = False
+            End If
 
-        ' Create the updates folder
-        If Directory.Exists(UPDATES_FOLDER) Then
-            ' Delete what is there and replace
-            Dim ImageDir As New DirectoryInfo(UPDATES_FOLDER)
-            ImageDir.Delete(True)
-        End If
+            ' Set the version of the XML file we will use
+            If TestingVersion Then
+                LocalXMLFileName = XMLLatestVersionTest
+            Else
+                LocalXMLFileName = XMLLatestVersionFileName
+            End If
 
-        ' Create the new folder
-        Directory.CreateDirectory(UPDATES_FOLDER)
+            ' Create the temp updates folder
+            If Directory.Exists(Path.Combine(AppDataRoamingFolder, TempUpdatePath)) Then
+                ' Delete what is there and replace
+                Dim ImageDir As New DirectoryInfo(Path.Combine(AppDataRoamingFolder, TempUpdatePath))
+                ImageDir.Delete(True)
+            End If
 
-        BGWorker.WorkerReportsProgress = True
-        BGWorker.WorkerSupportsCancellation = True
+            ' Create the new folder
+            Directory.CreateDirectory(Path.Combine(AppDataRoamingFolder, TempUpdatePath))
 
-        pgUpdate.Value = 0
-        pgUpdate.Visible = False
-        pgUpdate.Maximum = 100
+            BGWorker.WorkerReportsProgress = True
+            BGWorker.WorkerSupportsCancellation = True
 
-        ProgramErrorLocation = ""
-        ThrownError = ""
+            pgUpdate.Value = 0
+            pgUpdate.Visible = False
+            pgUpdate.Maximum = 100
 
-        Me.Focus()
+            ProgramErrorLocation = ""
+            ThrownError = ""
+
+            Me.Focus()
+        Catch ex As Exception
+            MsgBox(ex.Message)
+        End Try
 
     End Sub
 
     ' This event handler is where the time-consuming work is done.
     Private Sub BGWorker_DoWork(ByVal sender As System.Object, ByVal e As System.ComponentModel.DoWorkEventArgs) Handles BGWorker.DoWork
-        worker = CType(sender, BackgroundWorker)
+        Worker = CType(sender, BackgroundWorker)
         Dim ProgressCounter As Integer
 
         Dim m_xmld As New XmlDocument
@@ -166,6 +177,8 @@ Public Class frmUpdaterMain
         Dim ServerFileList As New List(Of FileEntry)
         Dim LocalFileList As New List(Of FileEntry)
 
+        Dim NewRootFolder As String
+
         Dim RecordCount As Integer
         Dim CheckFile As String ' For checking if the file downloads or not
         Dim UpdateComplete As Boolean = False
@@ -175,8 +188,6 @@ Public Class frmUpdaterMain
 
         ' For DB updates
         Dim DBCommand As SQLiteCommand
-        Dim DBOLD As New SQLiteConnection
-        Dim DBNEW As New SQLiteConnection
 
         ' Delegate for updating status
         Dim UpdateStatusDelegate As UpdateStatusSafe
@@ -193,11 +204,14 @@ Public Class frmUpdaterMain
         Me.Invoke(UpdateStatusDelegate, False, "Checking for Updates...")
 
         ' Get the newest update file from server
+        Dim URL As String
         If TestingVersion Then
-            ServerXMLLastUpdatePath = DownloadFileFromServer(XMLUpdateTestFileURL, UPDATES_FOLDER & LocalXMLFileName)
+            URL = XMLUpdateTestFileURL
         Else
-            ServerXMLLastUpdatePath = DownloadFileFromServer(XMLUpdateFileURL, UPDATES_FOLDER & LocalXMLFileName)
+            URL = XMLUpdateFileURL
         End If
+
+        ServerXMLLastUpdatePath = DownloadFileFromServer(URL, Path.Combine(AppDataRoamingFolder, TempUpdatePath, LocalXMLFileName))
 
         If ServerXMLLastUpdatePath <> "" Then
             ' Load the server xml file to check for updates 
@@ -222,9 +236,9 @@ Public Class frmUpdaterMain
             GoTo RevertToOldFileVersions
         End If
 
-        If File.Exists(ROOT_FOLDER & LocalXMLFileName) Then
+        If File.Exists(Path.Combine(AppDataRoamingFolder, LocalXMLFileName)) Then
             ' Load the local xml file to check for updates for the DB and images
-            m_xmld.Load(ROOT_FOLDER & LocalXMLFileName)
+            m_xmld.Load(Path.Combine(AppDataRoamingFolder, LocalXMLFileName))
             m_nodelist = m_xmld.SelectNodes("/EVEIPH/result/rowset/row")
 
             ' Loop through the nodes 
@@ -253,7 +267,7 @@ Public Class frmUpdaterMain
         RecordCount = ServerFileList.Count - 1
         For i = 0 To RecordCount
 
-            If (worker.CancellationPending = True) Then
+            If (Worker.CancellationPending = True) Then
                 e.Cancel = True
                 Exit Sub
             End If
@@ -285,7 +299,7 @@ Public Class frmUpdaterMain
                 End If
             Else
                 ' All files other than the DB and Updater are run from the Root folder - Images and db a special exception above
-                LocalFileMD5 = MD5CalcFile(ROOT_FOLDER & ServerFileList(i).Name)
+                LocalFileMD5 = MD5CalcFile(Path.Combine(ROOT_FOLDER, ServerFileList(i).Name))
             End If
 
             ' Compare the MD5's and see if we download the new file
@@ -293,9 +307,9 @@ Public Class frmUpdaterMain
 
                 ' Need to update, download to updates folder for later update
                 Me.Invoke(UpdateStatusDelegate, True, "")
-                CheckFile = DownloadFileFromServer(ServerFileList(i).URL, UPDATES_FOLDER & ServerFileList(i).Name)
+                CheckFile = DownloadFileFromServer(ServerFileList(i).URL, Path.Combine(AppDataRoamingFolder, TempUpdatePath, ServerFileList(i).Name))
 
-                If (worker.CancellationPending = True) Then
+                If (Worker.CancellationPending = True) Then
                     e.Cancel = True
                     Exit Sub
                 End If
@@ -313,9 +327,9 @@ Public Class frmUpdaterMain
                         infoReader = My.Computer.FileSystem.GetFileInfo(CheckFile)
                         ' Still bad MD5 or the file is 0 bytes
                         If MD5CalcFile(CheckFile) <> ServerFileList(i).MD5 Or infoReader.Length = 0 Then
-                            CheckFile = DownloadFileFromServer(ServerFileList(i).URL, UPDATES_FOLDER & ServerFileList(i).Name)
+                            CheckFile = DownloadFileFromServer(ServerFileList(i).URL, Path.Combine(AppDataRoamingFolder, TempUpdatePath, ServerFileList(i).Name))
 
-                            If (worker.CancellationPending = True) Then
+                            If (Worker.CancellationPending = True) Then
                                 e.Cancel = True
                                 Exit Sub
                             End If
@@ -346,109 +360,63 @@ Public Class frmUpdaterMain
         RecordCount = UpdateFileList.Count - 1
         For i = 0 To RecordCount
 
-            If (worker.CancellationPending = True) Then
+            If (Worker.CancellationPending = True) Then
                 e.Cancel = True
                 Exit Sub
             Else
                 ' Report progress.
                 If RecordCount > 0 Then
-                    worker.ReportProgress((i / RecordCount) + 1 * 10)
+                    Worker.ReportProgress((i / RecordCount) + 1 * 10)
                 End If
             End If
 
             ' Now that we have the files downloaded, run special updates for DB and images (Zipped), the others are just saved already
-            If UpdateFileList(i).Name.Substring(UpdateFileList(i).Name.Length - 5) = ".s3db" Then
-
-                ' Copy the following tables before renaming
-                ' API
-                ' ASSETS
-                ' ASSET_LOCATIONS
-                ' CHARACTER_CORP_ROLES
-                ' CHARACTER_CORP_TITLES
-                ' CHARACTER_IMPLANTS
-                ' CHARACTER_JUMP_CLONES
-                ' CHARACTER_SHEET
-                ' CHARACTER_SKILLS
-                ' CHARACTER_STANDINGS
-                ' CURRENT_RESEARCH_AGENTS
-
-                ' EMD_ITEM_PRICE_HISTORY
-                ' EMD_UPDATE_HISTORY
-                ' MARKET_HISTORY
-                ' MARKET_HISTORY_UPDATE_CACHE
-                ' MARKET_ORDERS
-                ' MARKET_ORDERS_UPDATE_CACHE
-                ' PRICE_PROFILES
-
-                ' INDUSTRY_JOBS
-                ' ITEM_PRICES
-                ' ITEM_PRICES_CACHE
-                ' OWNED_BLUEPRINTS
-                ' STATIONS
-                ' FW_SYSTEM_UPGRADES
-
-                ' NEW CREST TABLES
-                ' INDUSTRY_CATEGORY_SPECIALTIES
-                ' INDUSTRY_FACILITIES
-                ' INDUSTRY_GROUP_SPECIALTIES
-                ' INDUSTRY_SYSTEMS_COST_INDICIES
-                ' INDUSTRY_TEAMS
-                ' INDUSTRY_TEAMS_AUCTIONS
-                ' INDUSTRY_TEAMS_BONUSES
-                ' STATION_FACILITIES - Copy this data so we don't have to build it later
+            If UpdateFileList(i).Name.Substring(UpdateFileList(i).Name.Length - 7) = ".sqlite" Then
 
                 ' Open databases, if no database file, so just exit and use downloaded one
-                If File.Exists(ROOT_FOLDER & UpdateFileList(i).Name) Then
-                    DBOLD.ConnectionString = DATASOURCESTRING & ROOT_FOLDER & UpdateFileList(i).Name
+                If File.Exists(UpdateFileList(i).Name) Then
+                    DBOLD.ConnectionString = DATASOURCESTRING & UpdateFileList(i).Name
                     DBOLD.Open()
 
-                    DBNEW.ConnectionString = DATASOURCESTRING & UPDATES_FOLDER & UpdateFileList(i).Name
+                    DBNEW.ConnectionString = DATASOURCESTRING & Path.Combine(AppDataRoamingFolder, TempUpdatePath, UpdateFileList(i).Name)
                     DBNEW.Open()
 
                     ' Open both DBs here and update through ref
                     Call ExecuteNonQuerySQL("PRAGMA synchronous = NORMAL", DBOLD)
                     Call ExecuteNonQuerySQL("PRAGMA synchronous = NORMAL; PRAGMA auto_vacuum = FULL;", DBNEW)
 
-                    Call UpdateAPITable(DBOLD, DBNEW)
-                    Call UpdateAssetsTable(DBOLD, DBNEW)
-                    Call UpdateAssetLocationsTable(DBOLD, DBNEW)
-                    Call UpdateCorpRolesTable(DBOLD, DBNEW)
+                    Call UpdateESICharacterDataTable()
+                    Call UpdateESICorporationDataTable()
+                    Call UpdateESIPublicCacheDatesTable()
 
-                    Call UpdateCharacterCorpTitlesTable(DBOLD, DBNEW)
-                    Call UpdateCharacterImplantsTable(DBOLD, DBNEW)
-                    Call UpdateCharacterJumpClonesTable(DBOLD, DBNEW)
-                    Call UpdateCharacterSheetTable(DBOLD, DBNEW)
-                    Call UpdateCharacterSkillsTable(DBOLD, DBNEW)
-                    Call UpdateCharacterStandingsTable(DBOLD, DBNEW)
-                    Call UpdateCurrentResearchAgentsTable(DBOLD, DBNEW)
+                    Call UpdateAssetsTable()
+                    Call UpdateAssetLocationsTable()
 
-                    Call UpdateEMDItemPriceHistoryTable(DBOLD, DBNEW)
-                    Call UpdateEMDUpdateHistoryTable(DBOLD, DBNEW)
+                    Call UpdateCharacterSkillsTable()
+                    Call UpdateCharacterStandingsTable()
+                    Call UpdateCurrentResearchAgentsTable()
 
-                    Call UpdateMarketHistoryTable(DBOLD, DBNEW)
-                    Call UpdateMarketHistoryUpdateCacheTable(DBOLD, DBNEW)
-                    Call UpdateMarketOrdersTable(DBOLD, DBNEW)
-                    Call UpdateMarketOrdersUpdateCacheTable(DBOLD, DBNEW)
-                    Call UpdatePriceProfilesTable(DBOLD, DBNEW)
+                    Call UpdateMarketHistoryTable()
+                    Call UpdateMarketHistoryUpdateCacheTable()
 
-                    Call UpdateIndustryJobsTable(DBOLD, DBNEW)
+                    Call UpdateMarketOrdersTable()
+                    Call UpdateMarketOrdersUpdateCacheTable()
 
-                    Call UpdateItemPricesTable(DBOLD, DBNEW)
-                    Call UpdateItemPricesCacheTable(DBOLD, DBNEW)
+                    Call UpdateIndustryJobsTable()
 
-                    Call UpdateOwnedBlueprintsTable(DBOLD, DBNEW)
-                    Call UpdateFWSystemUpgradesTable(DBOLD, DBNEW)
+                    Call UpdateItemPricesTable()
+                    Call UpdateItemPricesCacheTable()
+                    Call UpdatePriceProfilesTable()
 
-                    Call UpdateIndustryCategorySpecialtiesTable(DBOLD, DBNEW)
-                    Call UpdateIndustryFacilitiesTable(DBOLD, DBNEW)
-                    Call UpdateIndustryGroupSpecialtiesTable(DBOLD, DBNEW)
-                    Call UpdateIndustrySystemCostIndiciesTable(DBOLD, DBNEW)
-                    Call UpdateIndustryTeamsTable(DBOLD, DBNEW)
-                    Call UpdateIndustryTeamsAuctionsTable(DBOLD, DBNEW)
-                    Call UpdateIndustryTeamsAuctionsBidsTable(DBOLD, DBNEW)
-                    Call UpdateIndustryTeamsBonusesTable(DBOLD, DBNEW)
+                    Call UpdateOwnedBlueprintsTable()
+                    Call UpdateFWSystemUpgradesTable()
 
-                    Call UpdateStationFacilitiesTable(DBOLD, DBNEW)
+                    Call UpdateIndustryFacilitiesTable()
+                    Call UpdateIndustrySystemCostIndiciesTable()
+
+                    Call UpdateStationFacilitiesTable()
+                    Call UpdateSavedFacilitiesTable()
+                    Call UpdateUpwellStructuresInstalledModulesTable()
 
                     DBOLD.Close()
                     DBNEW.Close()
@@ -466,9 +434,9 @@ Public Class frmUpdaterMain
 
                 EVEImagesNewLocalFolderName = EVE_IMAGES_ZIP.Substring(0, Len(EVE_IMAGES_ZIP) - 4) ' Save as base name
                 ' Delete if exists
-                File.Delete(UPDATES_FOLDER & EVEImagesNewLocalFolderName)
+                File.Delete(Path.Combine(AppDataRoamingFolder, TempUpdatePath, EVEImagesNewLocalFolderName))
                 ' Compress the whole file for download
-                Call ZipFile.ExtractToDirectory(UPDATES_FOLDER & EVE_IMAGES_ZIP, UPDATES_FOLDER & EVEImagesNewLocalFolderName)
+                Call ZipFile.ExtractToDirectory(Path.Combine(AppDataRoamingFolder, TempUpdatePath, EVE_IMAGES_ZIP), Path.Combine(AppDataRoamingFolder, TempUpdatePath, EVEImagesNewLocalFolderName))
 
                 ProgramErrorLocation = ""
                 SQL = ""
@@ -487,81 +455,84 @@ Public Class frmUpdaterMain
 
         For i = 0 To RecordCount
             Me.Invoke(UpdateStatusDelegate, False, "Copying Files...")
-            If (worker.CancellationPending = True) Then
+            If (Worker.CancellationPending = True) Then
                 e.Cancel = True
                 Exit Sub
             Else
                 ' Report progress.
                 If RecordCount > 0 Then
-                    worker.ReportProgress((i / RecordCount) + 1 * 10)
+                    Worker.ReportProgress((i / RecordCount) + 1 * 10)
                 End If
             End If
+
+            NewRootFolder = GetNewRootFolder(UpdateFileList(i).Name)
 
             If UpdateFileList(i).Name = EVE_IMAGES_ZIP Then
                 Me.Invoke(UpdateStatusDelegate, False, "Updating Images...")
 
                 ' Delete OLD folder if it exists
-                If Directory.Exists(ROOT_FOLDER & OLD_PREFIX & EVEImagesLocalFolderName) Then
+                If Directory.Exists(Path.Combine(NewRootFolder, OLD_PREFIX & EVEImagesLocalFolderName)) Then
                     ProgramErrorLocation = "Error Deleting Old Images"
                     ' Delete what is there and replace
-                    Directory.Delete(ROOT_FOLDER & OLD_PREFIX & EVEImagesLocalFolderName, True)
+                    Directory.Delete(Path.Combine(NewRootFolder, OLD_PREFIX & EVEImagesLocalFolderName), True)
                     Application.DoEvents()
                 End If
 
                 ' Rename the current folder to old
-                If Directory.Exists(ROOT_FOLDER & EVEImagesLocalFolderName) Then
+                If Directory.Exists(Path.Combine(NewRootFolder, EVEImagesLocalFolderName)) Then
                     ProgramErrorLocation = "Error Moving Old Images"
-                    Directory.Move(ROOT_FOLDER & EVEImagesLocalFolderName, ROOT_FOLDER & OLD_PREFIX & EVEImagesLocalFolderName)
+                    Directory.Move(Path.Combine(NewRootFolder, EVEImagesLocalFolderName), Path.Combine(NewRootFolder, OLD_PREFIX & EVEImagesLocalFolderName))
                     Application.DoEvents()
                 End If
 
-                ' Move the new image folder from updates folder to root directory folder
+                ' Move the new image folder from temp updates folder to root directory folder
                 ProgramErrorLocation = "Error Moving New Images"
-                Directory.Move(UPDATES_FOLDER & EVEImagesNewLocalFolderName, ROOT_FOLDER & EVEImagesNewLocalFolderName)
+                Directory.Move(Path.Combine(AppDataRoamingFolder, TempUpdatePath, EVEImagesNewLocalFolderName), Path.Combine(NewRootFolder, EVEImagesNewLocalFolderName))
                 Application.DoEvents()
 
             ElseIf UpdateFileList(i).Name = EVE_DB Then
                 Me.Invoke(UpdateStatusDelegate, False, "Updating DB...")
 
                 ' If an OLD file exists, delete it
-                If File.Exists(ROOT_FOLDER & OLD_PREFIX & EVE_DB) Then
+                If File.Exists(Path.Combine(NewRootFolder, OLD_PREFIX & EVE_DB)) Then
                     ProgramErrorLocation = "Error Deleting Old Database"
-                    File.Delete(ROOT_FOLDER & OLD_PREFIX & EVE_DB)
+                    File.Delete(Path.Combine(NewRootFolder, OLD_PREFIX & EVE_DB))
                     Application.DoEvents()
                 End If
 
                 ' Rename old file if it exists to old prefix
-                If File.Exists(ROOT_FOLDER & EVE_DB) Then
+                If File.Exists(Path.Combine(NewRootFolder, EVE_DB)) Then
                     ProgramErrorLocation = "Error Moving Old Database"
-                    File.Move(ROOT_FOLDER & EVE_DB, ROOT_FOLDER & OLD_PREFIX & EVE_DB)
+                    File.Move(Path.Combine(NewRootFolder, EVE_DB), Path.Combine(NewRootFolder, OLD_PREFIX & EVE_DB))
                     Application.DoEvents()
                 End If
 
-                ' Move new file
+                ' Move new file from temp to main
                 ProgramErrorLocation = "Error Moving New Database"
-                File.Move(UPDATES_FOLDER & EVE_DB, ROOT_FOLDER & EVE_DB)
+                File.Move(Path.Combine(AppDataRoamingFolder, TempUpdatePath, EVE_DB), Path.Combine(NewRootFolder, EVE_DB))
                 Application.DoEvents()
 
             Else
+
                 Me.Invoke(UpdateStatusDelegate, False, "Updating " & UpdateFileList(i).Name & "...")
 
                 ' If an OLD file exists, delete it
-                If File.Exists(ROOT_FOLDER & OLD_PREFIX & UpdateFileList(i).Name) Then
+                If File.Exists(Path.Combine(NewRootFolder, OLD_PREFIX & UpdateFileList(i).Name)) Then
                     ProgramErrorLocation = "Error Deleting Old " & UpdateFileList(i).Name & "file"
-                    File.Delete(ROOT_FOLDER & OLD_PREFIX & UpdateFileList(i).Name)
+                    File.Delete(Path.Combine(NewRootFolder, OLD_PREFIX & UpdateFileList(i).Name))
                     Application.DoEvents()
                 End If
 
                 ' Rename old file if it exists to old prefix
-                If File.Exists(ROOT_FOLDER & UpdateFileList(i).Name) Then
+                If File.Exists(Path.Combine(NewRootFolder, UpdateFileList(i).Name)) Then
                     ProgramErrorLocation = "Error Moving Old " & UpdateFileList(i).Name & "file"
-                    File.Move(ROOT_FOLDER & UpdateFileList(i).Name, ROOT_FOLDER & OLD_PREFIX & UpdateFileList(i).Name)
+                    File.Move(Path.Combine(NewRootFolder, UpdateFileList(i).Name), Path.Combine(NewRootFolder, OLD_PREFIX & UpdateFileList(i).Name))
                     Application.DoEvents()
                 End If
 
                 ' Move new file
                 ProgramErrorLocation = "Error Moving New " & UpdateFileList(i).Name & "file"
-                File.Move(UPDATES_FOLDER & UpdateFileList(i).Name, ROOT_FOLDER & UpdateFileList(i).Name)
+                File.Move(Path.Combine(AppDataRoamingFolder, TempUpdatePath, UpdateFileList(i).Name), Path.Combine(NewRootFolder, UpdateFileList(i).Name))
                 Application.DoEvents()
 
             End If
@@ -586,9 +557,9 @@ RevertToOldFileVersions:
         ThrownError = Err.Description
 
         ' Delete the updates folder
-        If Directory.Exists(UPDATES_FOLDER) Then
+        If Directory.Exists(Path.Combine(AppDataRoamingFolder, TempUpdatePath)) Then
             ' Delete what is there and replace
-            Directory.Delete(UPDATES_FOLDER, True)
+            Directory.Delete(Path.Combine(AppDataRoamingFolder, TempUpdatePath), True)
             Application.DoEvents()
         End If
 
@@ -596,36 +567,38 @@ RevertToOldFileVersions:
         If Not IsNothing(UpdateFileList) Then
             For i = 0 To UpdateFileList.Count - 1
 
+                NewRootFolder = GetNewRootFolder(UpdateFileList(i).Name)
+
                 If UpdateFileList(i).Name = EVE_IMAGES_ZIP Then
                     ' Delete the new folder if the old one renamed
-                    If Directory.Exists(ROOT_FOLDER & OLD_PREFIX & EVEImagesNewLocalFolderName) Then
+                    If Directory.Exists(Path.Combine(NewRootFolder, OLD_PREFIX & EVEImagesNewLocalFolderName)) Then
                         ' Delete it
-                        Directory.Delete(ROOT_FOLDER & OLD_PREFIX & EVEImagesNewLocalFolderName, True)
+                        Directory.Delete(Path.Combine(NewRootFolder, OLD_PREFIX & EVEImagesNewLocalFolderName), True)
                         Application.DoEvents()
                     End If
 
                     ' Rename the old zip folder
-                    Directory.Move(ROOT_FOLDER & EVEImagesLocalFolderName, ROOT_FOLDER & OLD_PREFIX & EVEImagesLocalFolderName)
+                    Directory.Move(Path.Combine(NewRootFolder, EVEImagesLocalFolderName), Path.Combine(NewRootFolder, OLD_PREFIX & EVEImagesLocalFolderName))
                     Application.DoEvents()
 
                 ElseIf UpdateFileList(i).Name = EVE_DB Then
 
                     ' If an OLD file exists, delete new, rename old
-                    If File.Exists(ROOT_FOLDER & OLD_PREFIX & EVE_DB) Then
-                        File.Delete(ROOT_FOLDER & EVE_DB)
+                    If File.Exists(Path.Combine(NewRootFolder, OLD_PREFIX & EVE_DB)) Then
+                        File.Delete(Path.Combine(NewRootFolder, OLD_PREFIX, EVE_DB))
                         Application.DoEvents()
-                        File.Move(ROOT_FOLDER & OLD_PREFIX & EVE_DB, ROOT_FOLDER & EVE_DB)
+                        File.Move(Path.Combine(AppDataRoamingFolder, OLD_PREFIX & EVE_DB), Path.Combine(AppDataRoamingFolder, EVE_DB))
                         Application.DoEvents()
                     End If
 
                 Else
                     ' Only rename if old version exists
-                    If File.Exists(ROOT_FOLDER & OLD_PREFIX & UpdateFileList(i).Name) Then
+                    If File.Exists(Path.Combine(NewRootFolder, OLD_PREFIX & UpdateFileList(i).Name)) Then
                         ' Delete the new file
-                        File.Delete(ROOT_FOLDER & UpdateFileList(i).Name)
+                        File.Delete(Path.Combine(NewRootFolder, UpdateFileList(i).Name))
                         Application.DoEvents()
                         ' Rename old file back 
-                        File.Move(ROOT_FOLDER & OLD_PREFIX & UpdateFileList(i).Name, ROOT_FOLDER & UpdateFileList(i).Name)
+                        File.Move(Path.Combine(NewRootFolder, OLD_PREFIX & UpdateFileList(i).Name), Path.Combine(NewRootFolder, UpdateFileList(i).Name))
                         Application.DoEvents()
                     End If
                 End If
@@ -642,6 +615,40 @@ RevertToOldFileVersions:
 
         Dim safedelegate As New UpdatePGBarSafe(AddressOf UpdateProgressBar)
         Me.Invoke(safedelegate, e.ProgressPercentage) 'Invoke the TreadsafeDelegate
+
+    End Sub
+
+    Private Function GetNewRootFolder(ByVal FileName As String) As String
+        ' need to split where the files are stored - update path (roaming) or the same folder - exe is in root path for instance
+        Select Case FileName
+            Case UpdaterFileName, EVE_DB, LocalXMLFileName
+                Return "" ' current folder we are working in (roaming or the root depending on install location)
+            Case Else
+                ' Main folder for the manifest, dlls, and main exe
+                Return ROOT_FOLDER
+        End Select
+    End Function
+
+    Private Sub CleanUpOLDFiles()
+        Dim ImageDir As DirectoryInfo
+        Dim NewRootFolder As String
+
+        On Error Resume Next
+
+        For i = 0 To UpdateFileList.Count - 1
+            NewRootFolder = GetNewRootFolder(UpdateFileList(i).Name)
+
+            If UpdateFileList(i).Name = EVE_IMAGES_ZIP Then
+                ' Downloaded old folder
+                Directory.Delete(Path.Combine(NewRootFolder, OLD_PREFIX & EVEImagesLocalFolderName), True)
+            ElseIf UpdateFileList(i).Name = EVE_DB Then
+                ' Delete old file
+                File.Delete(Path.Combine(NewRootFolder, OLD_PREFIX & EVE_DB))
+            Else
+                ' Delete old file
+                File.Delete(Path.Combine(NewRootFolder, OLD_PREFIX & UpdateFileList(i).Name))
+            End If
+        Next
 
     End Sub
 
@@ -699,14 +706,14 @@ RevertToOldFileVersions:
             lblUpdateMain.Text = "Update Complete."
             ' We have completed the update
             ' Copy over the old XML file and delete the old
-            If File.Exists(ROOT_FOLDER & LocalXMLFileName) Then
-                File.Delete(ROOT_FOLDER & LocalXMLFileName)
+            If File.Exists(Path.Combine(AppDataRoamingFolder, LocalXMLFileName)) Then
+                File.Delete(Path.Combine(AppDataRoamingFolder, LocalXMLFileName))
             End If
 
-            File.Move(UPDATES_FOLDER & LocalXMLFileName, ROOT_FOLDER & LocalXMLFileName)
+            File.Move(Path.Combine(AppDataRoamingFolder, TempUpdatePath, LocalXMLFileName), Path.Combine(AppDataRoamingFolder, LocalXMLFileName))
 
-            ' Finally delete the updates folder
-            Directory.Delete(UPDATES_FOLDER, True)
+            ' Finally delete the temp updates folder
+            Directory.Delete(Path.Combine(AppDataRoamingFolder, TempUpdatePath), True)
 
             ' Wait for a second before running - might solve the problem with incorrectly suggesting an update
             Thread.Sleep(1000)
@@ -727,27 +734,6 @@ RevertToOldFileVersions:
         Me.Hide()
         End
 
-    End Sub
-
-    Private Sub CleanUpOLDFiles()
-        Dim ImageDir As DirectoryInfo
-
-        On Error Resume Next
-
-        For i = 0 To UpdateFileList.Count - 1
-
-            If UpdateFileList(i).Name = EVE_IMAGES_ZIP Then
-                ' Downloaded old folder
-                Directory.Delete(ROOT_FOLDER & OLD_PREFIX & EVEImagesLocalFolderName, True)
-            ElseIf UpdateFileList(i).Name = EVE_DB Then
-                ' Delete old file
-                File.Delete(ROOT_FOLDER & OLD_PREFIX & EVE_DB)
-            Else
-                ' Delete old file
-                File.Delete(ROOT_FOLDER & OLD_PREFIX & UpdateFileList(i).Name)
-            End If
-
-        Next
     End Sub
 
     Private Sub btnCancel_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnCancel.Click
@@ -939,6 +925,8 @@ RevertToOldFileVersions:
         Dim FilePath As String = "EVEIPH.log"
         Dim AllText() As String
 
+        MsgBox(ErrorMsg)
+
         ' Only write to log if there is an error to write
         If Trim(ErrorMsg) <> "" Then
             If Not IO.File.Exists(FilePath) Then
@@ -954,208 +942,293 @@ RevertToOldFileVersions:
 
     End Sub
 
-    Public Function GetProxyData() As WebProxy
-        Dim ReturnProxy As WebProxy
-
-        Dim ProxyAddress As String = CStr(GetSettingValue(AppSettingsFileName, SettingTypes.TypeString, AppSettingsFileName, "ProxyAddress", DefaultProxyAddress))
-        Dim ProxyPort As Integer = CInt(GetSettingValue(AppSettingsFileName, SettingTypes.TypeInteger, AppSettingsFileName, "ProxyPort", DefaultProxyPort))
-
-        If ProxyAddress <> "" Then
-            If ProxyPort <> 0 Then
-                ReturnProxy = New WebProxy(ProxyAddress, ProxyPort)
-            Else
-                ReturnProxy = New WebProxy(ProxyAddress)
-            End If
-
-            ReturnProxy = New WebProxy(ProxyAddress, ProxyPort)
-            ReturnProxy.Credentials = CredentialCache.DefaultCredentials
-
-            Return ReturnProxy
-        Else
-            Return Nothing
-        End If
-
-    End Function
-
-    ' Gets a value from a referenced XML file by searching for it
-    Private Function GetSettingValue(ByRef FileName As String, ObjectType As SettingTypes, RootElement As String, ElementString As String, DefaultValue As Object) As Object
-        Dim m_xmld As New XmlDocument
-        Dim m_nodelist As XmlNodeList
-
-        Dim TempValue As String
-
-        'Load the Xml file
-        m_xmld.Load(SettingsFolder & FileName & XMLfileType)
-
-        'Get the settings
-
-        ' Get the cache update
-        m_nodelist = m_xmld.SelectNodes("/" & RootElement & "/" & ElementString)
-
-        If Not IsNothing(m_nodelist.Item(0)) Then
-            ' Should only be one
-            TempValue = m_nodelist.Item(0).InnerText
-
-            ' If blank, then return default
-            If TempValue = "" Then
-                Return DefaultValue
-            End If
-
-            If TempValue = "False" Or TempValue = "True" Then
-                ' Change to type boolean
-                ObjectType = SettingTypes.TypeBoolean
-            End If
-
-            ' Found it, return the cast
-            Select Case ObjectType
-                Case SettingTypes.TypeBoolean
-                    Return CBool(TempValue)
-                Case SettingTypes.TypeDouble
-                    Return CDbl(TempValue)
-                Case SettingTypes.TypeInteger
-                    Return CInt(TempValue)
-                Case SettingTypes.TypeString
-                    Return CStr(TempValue)
-                Case SettingTypes.TypeLong
-                    Return CLng(TempValue)
-            End Select
-
-        Else
-            ' Doesn't exist, use default
-            Return DefaultValue
-        End If
-
-        Return Nothing
-
-    End Function
-
 #Region "Database Table Updates"
 
-    Private Sub UpdateAPITable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+    Private Sub UpdateESICharacterDataTable()
         Dim DBCommand As SQLiteCommand
         Dim readerCheck As SQLiteDataReader
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
         Dim HaveNewAPIFields As Boolean
 
-        ' API
-        ProgramErrorLocation = "Cannot copy Character API"
+        ProgramErrorLocation = "Cannot copy ESI_CHARACTER_DATA"
 
-        ' See if they have the facility and blueprint cache field values first
+        ' See if they have the table
         On Error Resume Next
-        SQL = "SELECT FACILITIES_CACHED_UNTIL FROM API"
-        DBCommand = New SQLiteCommand(SQL, DBOLD)
-        readerCheck = DBCommand.ExecuteReader
-
-        ' If it didn't error, they have the fields
-        If Err.Number = 0 Then
-            HaveNewAPIFields = True
-            readerCheck.Close()
-        Else
-            HaveNewAPIFields = False
-        End If
-        On Error GoTo 0
-
-        readerCheck = Nothing
-
-        ' Now see if they have the new API table
-        On Error Resume Next
-        SQL = "SELECT 'X' FROM API"
+        SQL = "SELECT 'X' FROM ESI_CHARACTER_DATA"
         DBCommand = New SQLiteCommand(SQL, DBOLD)
         readerUpdate = DBCommand.ExecuteReader
         On Error GoTo 0
 
         If Not IsNothing(readerUpdate) Then
-
-            SQL = "SELECT * FROM API"
-
-            DBCommand = New SQLiteCommand(SQL, DBOLD)
-            readerUpdate = DBCommand.ExecuteReader
-
-            Call BeginSQLiteTransaction(DBNEW)
-            While readerUpdate.Read
-
-                SQL = "INSERT INTO API VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
-                If HaveNewAPIFields Then
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16))
-                Else
-                    SQL = SQL & "NULL,"
-                    SQL = SQL & "NULL"
-                End If
-
-                SQL = SQL & ")"
-
-                Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            End While
-
-            Call CommitSQLiteTransaction(DBNEW)
-
-            readerUpdate.Close()
-
+            ' They have it
+            SQL = "SELECT * FROM ESI_CHARACTER_DATA"
         Else
-
-            SQL = "SELECT CACHED_UNTIL, USER_ID, API_KEY, API_TYPE, ACCESS_MASK, CHARACTER_ID, CHARACTER_NAME, "
-            SQL = SQL & "CORPORATION_ID, CORPORATION_NAME, OVERRIDE_SKILLS, DEFAULT_CHARACTER, "
-            SQL = SQL & "KEY_EXPIRATION_DATE, ASSETS_CACHED_UNTIL, INDUSTRY_JOBS_CACHED_UNTIL, "
-            SQL = SQL & "RESEARCH_AGENT_CACHED_UNTIL, FACILITIES_CACHED_UNTIL, BLUEPRINTS_CACHED_UNTIL FROM CHARACTER_API"
-
-            DBCommand = New SQLiteCommand(SQL, DBOLD)
-            readerUpdate = DBCommand.ExecuteReader
-
-            Call BeginSQLiteTransaction(DBNEW)
-            While readerUpdate.Read
-
-                SQL = "INSERT INTO API VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14))
-                SQL = SQL & ",NULL, NULL)" ' For new facilities and blueprints cache values
-
-                Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            End While
-
-            Call CommitSQLiteTransaction(DBNEW)
-
-            readerUpdate.Close()
-
+            ' They don't have the table, so exit because this is a required table and will come with nothing in it to start
+            Exit Sub
         End If
 
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+
+        Call BeginSQLiteTransaction(DBNEW)
+        While readerUpdate.Read
+
+            SQL = "INSERT INTO ESI_CHARACTER_DATA VALUES ("
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(21)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(22)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(23)) & ")"
+
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+        End While
+
+        Call CommitSQLiteTransaction(DBNEW)
+
+        readerUpdate.Close()
         readerUpdate = Nothing
         DBCommand = Nothing
 
     End Sub
 
-    Private Sub UpdateAssetsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+    Private Sub UpdateESICorporationDataTable()
+        Dim DBCommand As SQLiteCommand
+        Dim readerCheck As SQLiteDataReader
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+        Dim HaveNewAPIFields As Boolean
+
+        ProgramErrorLocation = "Cannot copy ESI_CORPORATION_DATA"
+
+        ' See if they have the table
+        On Error Resume Next
+        SQL = "SELECT 'X' FROM ESI_CORPORATION_DATA"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        If Not IsNothing(readerUpdate) Then
+            ' They have it
+            SQL = "SELECT * FROM ESI_CORPORATION_DATA"
+        Else
+            ' They don't have the table, so exit because this is a required table and will come with nothing in it to start
+            Exit Sub
+        End If
+
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+
+        Call BeginSQLiteTransaction(DBNEW)
+        While readerUpdate.Read
+
+            SQL = "INSERT INTO ESI_CORPORATION_DATA VALUES ("
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ")"
+
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+        End While
+
+        Call CommitSQLiteTransaction(DBNEW)
+
+        readerUpdate.Close()
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateESIPublicCacheDatesTable()
+        Dim DBCommand As SQLiteCommand
+        Dim readerCheck As SQLiteDataReader
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+        Dim HaveNewAPIFields As Boolean
+
+        ProgramErrorLocation = "Cannot copy ESI_PUBLIC_CACHE_DATES"
+
+        ' See if they have the table
+        On Error Resume Next
+        SQL = "SELECT 'X' FROM ESI_PUBLIC_CACHE_DATES"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        If Not IsNothing(readerUpdate) Then
+            ' They have it
+            SQL = "SELECT * FROM ESI_PUBLIC_CACHE_DATES"
+        Else
+            ' They don't have the table, so exit because this is a required table and will come with nothing in it to start
+            Exit Sub
+        End If
+
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+
+        Call BeginSQLiteTransaction(DBNEW)
+        While readerUpdate.Read
+
+            SQL = "INSERT INTO ESI_PUBLIC_CACHE_DATES VALUES ("
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ")"
+
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+        End While
+
+        Call CommitSQLiteTransaction(DBNEW)
+
+        readerUpdate.Close()
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateSavedFacilitiesTable()
+        Dim DBCommand As SQLiteCommand
+        Dim readerCheck As SQLiteDataReader
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+        Dim HaveNewAPIFields As Boolean
+
+        ProgramErrorLocation = "Cannot copy SAVED_FACILITIES"
+
+        ' See if they have the table
+        On Error Resume Next
+        SQL = "SELECT 'X' FROM SAVED_FACILITIES"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        If Not IsNothing(readerUpdate) Then
+            ' They have it
+            SQL = "SELECT * FROM SAVED_FACILITIES"
+        Else
+            ' They don't have the table, so exit because this is a required table and will come with nothing in it to start
+            Exit Sub
+        End If
+
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+
+        Call BeginSQLiteTransaction(DBNEW)
+        While readerUpdate.Read
+
+            SQL = "INSERT INTO SAVED_FACILITIES VALUES ("
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ")"
+
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+        End While
+
+        Call CommitSQLiteTransaction(DBNEW)
+
+        readerUpdate.Close()
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateUpwellStructuresInstalledModulesTable()
+        Dim DBCommand As SQLiteCommand
+        Dim readerCheck As SQLiteDataReader
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+        Dim HaveNewAPIFields As Boolean
+
+        ProgramErrorLocation = "Cannot copy UPWELL_STRUCTURES_INSTALLED_MODULES"
+
+        ' See if they have the table
+        On Error Resume Next
+        SQL = "SELECT 'X' FROM UPWELL_STRUCTURES_INSTALLED_MODULES"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        If Not IsNothing(readerUpdate) Then
+            ' They have it
+            SQL = "SELECT * FROM UPWELL_STRUCTURES_INSTALLED_MODULES"
+        Else
+            ' They don't have the table, so exit because this is a required table and will come with nothing in it to start
+            Exit Sub
+        End If
+
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+
+        Call BeginSQLiteTransaction(DBNEW)
+        While readerUpdate.Read
+
+            SQL = "INSERT INTO UPWELL_STRUCTURES_INSTALLED_MODULES VALUES ("
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ")"
+
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+        End While
+
+        Call CommitSQLiteTransaction(DBNEW)
+
+        readerUpdate.Close()
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateAssetsTable()
         Dim DBCommand As SQLiteCommand
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
@@ -1198,7 +1271,7 @@ RevertToOldFileVersions:
 
     End Sub
 
-    Private Sub UpdateAssetLocationsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+    Private Sub UpdateAssetLocationsTable()
         Dim DBCommand As SQLiteCommand
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
@@ -1237,225 +1310,7 @@ RevertToOldFileVersions:
 
     End Sub
 
-    Private Sub UpdateCorpRolesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
-        Dim DBCommand As SQLiteCommand
-        Dim readerUpdate As SQLiteDataReader
-        Dim SQL As String
-
-        ' CHARACTER_CORP_ROLES
-        On Error Resume Next
-        ProgramErrorLocation = "Cannot copy Character Corporation Roles"
-        SQL = "SELECT * FROM CHARACTER_CORP_ROLES"
-        DBCommand = New SQLiteCommand(SQL, DBOLD)
-        readerUpdate = DBCommand.ExecuteReader
-        On Error GoTo 0
-
-        ' They might not have this table yet.
-        If Not IsNothing(readerUpdate) Then
-            Call BeginSQLiteTransaction(DBNEW)
-
-            While readerUpdate.Read
-                SQL = "INSERT INTO CHARACTER_CORP_ROLES (CHARACTER_ID, ROLE_TYPE, ROLE_ID, ROLE_NAME) VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3))
-                SQL = SQL & ")"
-
-                Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            End While
-
-            Call CommitSQLiteTransaction(DBNEW)
-
-            readerUpdate.Close()
-            readerUpdate = Nothing
-            DBCommand = Nothing
-        End If
-    End Sub
-
-    Private Sub UpdateCharacterCorpTitlesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
-        Dim DBCommand As SQLiteCommand
-        Dim readerUpdate As SQLiteDataReader
-        Dim SQL As String
-
-        ' CHARACTER_CORP_TITLES
-        On Error Resume Next
-        ProgramErrorLocation = "Cannot copy Character Corporation Titles"
-        SQL = "SELECT * FROM CHARACTER_CORP_TITLES"
-        DBCommand = New SQLiteCommand(SQL, DBOLD)
-        readerUpdate = DBCommand.ExecuteReader
-        On Error GoTo 0
-
-        ' They might not have this table yet.
-        If Not IsNothing(readerUpdate) Then
-            Call BeginSQLiteTransaction(DBNEW)
-
-            While readerUpdate.Read
-                SQL = "INSERT INTO CHARACTER_CORP_TITLES (CHARACTER_ID, TITLE_ID, TITLE_NAME) VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2))
-                SQL = SQL & ")"
-
-                Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            End While
-
-            Call CommitSQLiteTransaction(DBNEW)
-
-            readerUpdate.Close()
-            readerUpdate = Nothing
-            DBCommand = Nothing
-        End If
-
-    End Sub
-
-    Private Sub UpdateCharacterImplantsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
-        Dim DBCommand As SQLiteCommand
-        Dim readerUpdate As SQLiteDataReader
-        Dim SQL As String
-
-        ' CHARACTER_IMPLANTS
-        On Error Resume Next
-        ProgramErrorLocation = "Cannot copy Character Implants"
-        SQL = "SELECT * FROM CHARACTER_IMPLANTS"
-        DBCommand = New SQLiteCommand(SQL, DBOLD)
-        readerUpdate = DBCommand.ExecuteReader
-        On Error GoTo 0
-
-        ' They might not have this table yet.
-        If Not IsNothing(readerUpdate) Then
-            Call BeginSQLiteTransaction(DBNEW)
-
-            While readerUpdate.Read
-                SQL = "INSERT INTO CHARACTER_IMPLANTS (CHARACTER_ID, JUMP_CLONE_ID, IMPLANT_ID, IMPLANT_NAME) VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3))
-                SQL = SQL & ")"
-
-                Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            End While
-
-            Call CommitSQLiteTransaction(DBNEW)
-
-            readerUpdate.Close()
-            readerUpdate = Nothing
-            DBCommand = Nothing
-        End If
-
-    End Sub
-
-    Private Sub UpdateCharacterJumpClonesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
-        Dim DBCommand As SQLiteCommand
-        Dim readerUpdate As SQLiteDataReader
-        Dim SQL As String
-
-        ' CHARACTER_JUMP_CLONES
-        On Error Resume Next
-        ProgramErrorLocation = "Cannot copy Character Jump Clones"
-        SQL = "SELECT * FROM CHARACTER_JUMP_CLONES"
-        DBCommand = New SQLiteCommand(SQL, DBOLD)
-        readerUpdate = DBCommand.ExecuteReader
-        On Error GoTo 0
-
-        ' They might not have this table yet.
-        If Not IsNothing(readerUpdate) Then
-            Call BeginSQLiteTransaction(DBNEW)
-
-            While readerUpdate.Read
-                SQL = "INSERT INTO CHARACTER_JUMP_CLONES (CHARACTER_ID, JUMP_CLONE_ID, LOCATION_ID, TYPE_ID, CLONE_NAME) VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4))
-                SQL = SQL & ")"
-
-                Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            End While
-
-            Call CommitSQLiteTransaction(DBNEW)
-
-            readerUpdate.Close()
-            readerUpdate = Nothing
-            DBCommand = Nothing
-        End If
-    End Sub
-
-    Private Sub UpdateCharacterSheetTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
-        Dim DBCommand As SQLiteCommand
-        Dim readerUpdate As SQLiteDataReader
-        Dim SQL As String
-
-        ' CHARACTER_SHEET
-        On Error Resume Next
-        ProgramErrorLocation = "Cannot copy Character Sheet"
-        SQL = "SELECT * FROM CHARACTER_SHEET"
-        DBCommand = New SQLiteCommand(SQL, DBOLD)
-        readerUpdate = DBCommand.ExecuteReader
-        On Error GoTo 0
-
-        ' They might not have this table yet.
-        If Not IsNothing(readerUpdate) Then
-            Call BeginSQLiteTransaction(DBNEW)
-
-            While readerUpdate.Read
-                SQL = "INSERT INTO CHARACTER_SHEET (CHARACTER_ID, CHARACTER_NAME, HOME_STATION_ID, DOB, "
-                SQL = SQL & "RACE, BLOOD_LINE_ID, BLOOD_LINE, ANCESTRY_LINE_ID, ANCESTRY_LINE, GENDER, CORPORATION_NAME, "
-                SQL = SQL & "CORPORATION_ID, ALLIANCE_NAME, ALLIANCE_ID, FACTION_NAME, FACTION_ID, FREE_SKILL_POINTS, "
-                SQL = SQL & "FREE_RESPECS, CLONE_JUMP_DATE, LAST_RESPEC_DATE, LAST_TIMED_RESPEC, REMOTE_STATION_DATE, JUMP_ACTIVATION, "
-                SQL = SQL & "JUMP_FATIGUE, JUMP_LAST_UPDATE, BALANCE, INTELLIGENCE, MEMORY, WILLPOWER, PERCEPTION, CHARISMA) VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(21)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(22)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(23)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(24)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(25)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(26)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(27)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(28)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(29)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(30))
-                SQL = SQL & ")"
-
-                Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            End While
-
-            Call CommitSQLiteTransaction(DBNEW)
-
-            readerUpdate.Close()
-            readerUpdate = Nothing
-            DBCommand = Nothing
-        End If
-    End Sub
-
-    Private Sub UpdateCharacterSkillsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+    Private Sub UpdateCharacterSkillsTable()
         Dim DBCommand As SQLiteCommand
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
@@ -1490,7 +1345,7 @@ RevertToOldFileVersions:
 
     End Sub
 
-    Private Sub UpdateCharacterStandingsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+    Private Sub UpdateCharacterStandingsTable()
         Dim DBCommand As SQLiteCommand
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
@@ -1523,7 +1378,7 @@ RevertToOldFileVersions:
 
     End Sub
 
-    Public Sub UpdateCurrentResearchAgentsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+    Public Sub UpdateCurrentResearchAgentsTable()
         Dim DBCommand As SQLiteCommand
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
@@ -1563,89 +1418,7 @@ RevertToOldFileVersions:
         DBCommand = Nothing
     End Sub
 
-    Private Sub UpdateEMDItemPriceHistoryTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
-        Dim DBCommand As SQLiteCommand
-        Dim readerUpdate As SQLiteDataReader
-        Dim SQL As String
-
-        ' EMD_ITEM_PRICE_HISTORY
-        On Error Resume Next
-        ProgramErrorLocation = "Cannot copy EMD Price History"
-        SQL = "SELECT * FROM EMD_ITEM_PRICE_HISTORY"
-        DBCommand = New SQLiteCommand(SQL, DBOLD)
-        readerUpdate = DBCommand.ExecuteReader
-        On Error GoTo 0
-
-        ' They might not have this table yet.
-        If Not IsNothing(readerUpdate) Then
-
-            Call BeginSQLiteTransaction(DBNEW)
-
-            While readerUpdate.Read
-                SQL = "INSERT INTO EMD_ITEM_PRICE_HISTORY VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7))
-                SQL = SQL & ")"
-
-                Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            End While
-
-            Call CommitSQLiteTransaction(DBNEW)
-
-            readerUpdate.Close()
-        End If
-
-        readerUpdate = Nothing
-        DBCommand = Nothing
-
-    End Sub
-
-    Private Sub UpdateEMDUpdateHistoryTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
-        Dim DBCommand As SQLiteCommand
-        Dim readerUpdate As SQLiteDataReader
-        Dim SQL As String
-
-        ' EMD_UPDATE_HISTORY
-        On Error Resume Next
-        ProgramErrorLocation = "Cannot copy EMD Update History"
-        SQL = "SELECT * FROM EMD_UPDATE_HISTORY"
-        DBCommand = New SQLiteCommand(SQL, DBOLD)
-        readerUpdate = DBCommand.ExecuteReader
-        On Error GoTo 0
-
-        ' They might not have this table yet.
-        If Not IsNothing(readerUpdate) Then
-            Call BeginSQLiteTransaction(DBNEW)
-
-            While readerUpdate.Read
-                SQL = "INSERT INTO EMD_UPDATE_HISTORY VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3))
-                SQL = SQL & ")"
-
-                Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            End While
-
-            Call CommitSQLiteTransaction(DBNEW)
-
-            readerUpdate.Close()
-        End If
-
-        readerUpdate = Nothing
-        DBCommand = Nothing
-    End Sub
-
-    Private Sub UpdateMarketHistoryTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+    Private Sub UpdateMarketHistoryTable()
         Dim DBCommand As SQLiteCommand
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
@@ -1690,7 +1463,7 @@ RevertToOldFileVersions:
 
     End Sub
 
-    Private Sub UpdateMarketHistoryUpdateCacheTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+    Private Sub UpdateMarketHistoryUpdateCacheTable()
         Dim DBCommand As SQLiteCommand
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
@@ -1730,7 +1503,7 @@ RevertToOldFileVersions:
 
     End Sub
 
-    Private Sub UpdateMarketOrdersTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+    Private Sub UpdateMarketOrdersTable()
         Dim DBCommand As SQLiteCommand
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
@@ -1777,7 +1550,7 @@ RevertToOldFileVersions:
 
     End Sub
 
-    Private Sub UpdateMarketOrdersUpdateCacheTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+    Private Sub UpdateMarketOrdersUpdateCacheTable()
         Dim DBCommand As SQLiteCommand
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
@@ -1817,7 +1590,7 @@ RevertToOldFileVersions:
 
     End Sub
 
-    Private Sub UpdatePriceProfilesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+    Private Sub UpdatePriceProfilesTable()
         Dim DBCommand As SQLiteCommand
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
@@ -1863,7 +1636,7 @@ RevertToOldFileVersions:
 
     End Sub
 
-    Private Sub UpdateIndustryJobsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+    Private Sub UpdateIndustryJobsTable()
         Dim DBCommand As SQLiteCommand
         Dim readerCheck As SQLiteDataReader
         Dim readerUpdate As SQLiteDataReader
@@ -1950,7 +1723,7 @@ RevertToOldFileVersions:
 
     End Sub
 
-    Private Sub UpdateItemPricesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+    Private Sub UpdateItemPricesTable()
         Dim DBCommand As SQLiteCommand
         Dim readerCheck As SQLiteDataReader
         Dim readerUpdate As SQLiteDataReader
@@ -2003,7 +1776,7 @@ RevertToOldFileVersions:
 
     End Sub
 
-    Private Sub UpdateItemPricesCacheTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+    Private Sub UpdateItemPricesCacheTable()
         Dim DBCommand As SQLiteCommand
         Dim readerCheck As SQLiteDataReader
         Dim readerUpdate As SQLiteDataReader
@@ -2129,7 +1902,7 @@ RevertToOldFileVersions:
         DBCommand = Nothing
     End Sub
 
-    Private Sub UpdateOwnedBlueprintsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+    Private Sub UpdateOwnedBlueprintsTable()
         Dim DBCommand As SQLiteCommand
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
@@ -2172,7 +1945,8 @@ RevertToOldFileVersions:
         DBCommand = Nothing
 
     End Sub
-    Private Sub UpdateFWSystemUpgradesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+
+    Private Sub UpdateFWSystemUpgradesTable()
         Dim DBCommand As SQLiteCommand
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
@@ -2214,47 +1988,7 @@ RevertToOldFileVersions:
 
     End Sub
 
-    Private Sub UpdateIndustryCategorySpecialtiesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
-        Dim DBCommand As SQLiteCommand
-        Dim readerUpdate As SQLiteDataReader
-        Dim SQL As String
-
-        ' INDUSTRY_CATEGORY_SPECIALTIES
-        On Error Resume Next
-        ProgramErrorLocation = "Cannot copy INDUSTRY_CATEGORY_SPECIALTIES Data table"
-        SQL = "SELECT * FROM INDUSTRY_CATEGORY_SPECIALTIES"
-        DBCommand = New SQLiteCommand(SQL, DBOLD)
-        readerUpdate = DBCommand.ExecuteReader
-        On Error GoTo 0
-
-        ' They might not have this table yet.
-        If Not IsNothing(readerUpdate) Then
-            Call BeginSQLiteTransaction(DBNEW)
-
-            ' Delete all the station records first, then reload
-            SQL = "DELETE FROM INDUSTRY_CATEGORY_SPECIALTIES"
-            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            While readerUpdate.Read
-                SQL = "INSERT INTO INDUSTRY_CATEGORY_SPECIALTIES VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1))
-                SQL = SQL & ")"
-
-                Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            End While
-
-            Call CommitSQLiteTransaction(DBNEW)
-
-            readerUpdate.Close()
-        End If
-
-        readerUpdate = Nothing
-        DBCommand = Nothing
-
-    End Sub
-    Private Sub UpdateIndustryFacilitiesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+    Private Sub UpdateIndustryFacilitiesTable()
         Dim DBCommand As SQLiteCommand
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
@@ -2299,48 +2033,8 @@ RevertToOldFileVersions:
         DBCommand = Nothing
 
     End Sub
-    Private Sub UpdateIndustryGroupSpecialtiesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
-        Dim DBCommand As SQLiteCommand
-        Dim readerUpdate As SQLiteDataReader
-        Dim SQL As String
 
-        ' INDUSTRY_GROUP_SPECIALTIES
-        On Error Resume Next
-        ProgramErrorLocation = "Cannot copy INDUSTRY_GROUP_SPECIALTIES Data table"
-        SQL = "SELECT * FROM INDUSTRY_GROUP_SPECIALTIES"
-        DBCommand = New SQLiteCommand(SQL, DBOLD)
-        readerUpdate = DBCommand.ExecuteReader
-        On Error GoTo 0
-
-        ' They might not have this table yet.
-        If Not IsNothing(readerUpdate) Then
-            Call BeginSQLiteTransaction(DBNEW)
-
-            ' Delete all the station records first, then reload
-            SQL = "DELETE FROM INDUSTRY_GROUP_SPECIALTIES"
-            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            While readerUpdate.Read
-                SQL = "INSERT INTO INDUSTRY_GROUP_SPECIALTIES VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2))
-                SQL = SQL & ")"
-
-                Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            End While
-
-            Call CommitSQLiteTransaction(DBNEW)
-
-            readerUpdate.Close()
-        End If
-
-        readerUpdate = Nothing
-        DBCommand = Nothing
-
-    End Sub
-    Private Sub UpdateIndustrySystemCostIndiciesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+    Private Sub UpdateIndustrySystemCostIndiciesTable()
         Dim DBCommand As SQLiteCommand
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
@@ -2383,195 +2077,8 @@ RevertToOldFileVersions:
         DBCommand = Nothing
 
     End Sub
-    Private Sub UpdateIndustryTeamsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
-        Dim DBCommand As SQLiteCommand
-        Dim readerUpdate As SQLiteDataReader
-        Dim SQL As String
 
-        ' INDUSTRY_TEAMS
-        On Error Resume Next
-        ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS Data table"
-        SQL = "SELECT * FROM INDUSTRY_TEAMS"
-        DBCommand = New SQLiteCommand(SQL, DBOLD)
-        readerUpdate = DBCommand.ExecuteReader
-        On Error GoTo 0
-
-        ' They might not have this table yet.
-        If Not IsNothing(readerUpdate) Then
-            Call BeginSQLiteTransaction(DBNEW)
-
-            ' Delete all the station records first, then reload
-            SQL = "DELETE FROM INDUSTRY_TEAMS"
-            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            While readerUpdate.Read
-                SQL = "INSERT INTO INDUSTRY_TEAMS VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8))
-                SQL = SQL & ")"
-
-                Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            End While
-
-            Call CommitSQLiteTransaction(DBNEW)
-
-            readerUpdate.Close()
-        End If
-
-        readerUpdate = Nothing
-        DBCommand = Nothing
-
-    End Sub
-    Private Sub UpdateIndustryTeamsAuctionsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
-        Dim DBCommand As SQLiteCommand
-        Dim readerUpdate As SQLiteDataReader
-        Dim SQL As String
-
-        ' INDUSTRY_TEAMS_AUCTIONS
-        On Error Resume Next
-        ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS_AUCTIONS Data table"
-        SQL = "SELECT * FROM INDUSTRY_TEAMS_AUCTIONS"
-        DBCommand = New SQLiteCommand(SQL, DBOLD)
-        readerUpdate = DBCommand.ExecuteReader
-        On Error GoTo 0
-
-        ' They might not have this table yet.
-        If Not IsNothing(readerUpdate) Then
-            Call BeginSQLiteTransaction(DBNEW)
-
-            ' Delete all the station records first, then reload
-            SQL = "DELETE FROM INDUSTRY_TEAMS_AUCTIONS"
-            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            While readerUpdate.Read
-                SQL = "INSERT INTO INDUSTRY_TEAMS_AUCTIONS VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9))
-                SQL = SQL & ")"
-
-                Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            End While
-
-            Call CommitSQLiteTransaction(DBNEW)
-
-            readerUpdate.Close()
-        End If
-
-        readerUpdate = Nothing
-        DBCommand = Nothing
-
-    End Sub
-    Private Sub UpdateIndustryTeamsAuctionsBidsTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
-        Dim DBCommand As SQLiteCommand
-        Dim readerUpdate As SQLiteDataReader
-        Dim SQL As String
-
-        ' INDUSTRY_TEAMS_AUCTIONS_BIDS
-        On Error Resume Next
-        ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS_AUCTIONS_BIDS Data table"
-        SQL = "SELECT * FROM INDUSTRY_TEAMS_AUCTIONS_BIDS"
-        DBCommand = New SQLiteCommand(SQL, DBOLD)
-        readerUpdate = DBCommand.ExecuteReader
-        On Error GoTo 0
-
-        ' They might not have this table yet.
-        If Not IsNothing(readerUpdate) Then
-            Call BeginSQLiteTransaction(DBNEW)
-
-            ' Delete all the station records first, then reload
-            SQL = "DELETE FROM INDUSTRY_TEAMS_AUCTIONS_BIDS"
-            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            While readerUpdate.Read
-                SQL = "INSERT INTO INDUSTRY_TEAMS_AUCTIONS_BIDS VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9))
-                SQL = SQL & ")"
-
-                Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            End While
-
-            Call CommitSQLiteTransaction(DBNEW)
-
-            readerUpdate.Close()
-        End If
-
-        readerUpdate = Nothing
-        DBCommand = Nothing
-
-    End Sub
-    Private Sub UpdateIndustryTeamsBonusesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
-        Dim DBCommand As SQLiteCommand
-        Dim readerUpdate As SQLiteDataReader
-        Dim SQL As String
-
-        ' INDUSTRY_TEAMS_BONUSES
-        On Error Resume Next
-        ProgramErrorLocation = "Cannot copy INDUSTRY_TEAMS_BONUSES Data table"
-        SQL = "SELECT * FROM INDUSTRY_TEAMS_BONUSES"
-        DBCommand = New SQLiteCommand(SQL, DBOLD)
-        readerUpdate = DBCommand.ExecuteReader
-        On Error GoTo 0
-
-        ' They might not have this table yet.
-        If Not IsNothing(readerUpdate) Then
-            Call BeginSQLiteTransaction(DBNEW)
-
-            ' Delete all the station records first, then reload
-            SQL = "DELETE FROM INDUSTRY_TEAMS_BONUSES"
-            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            While readerUpdate.Read
-                SQL = "INSERT INTO INDUSTRY_TEAMS_BONUSES VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5))
-                SQL = SQL & ")"
-
-                Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-            End While
-
-            Call CommitSQLiteTransaction(DBNEW)
-
-            readerUpdate.Close()
-        End If
-
-        readerUpdate = Nothing
-        DBCommand = Nothing
-
-    End Sub
-
-    Private Sub UpdateStationFacilitiesTable(ByRef DBOLD As SQLiteConnection, ByRef DBNEW As SQLiteConnection)
+    Private Sub UpdateStationFacilitiesTable()
         Dim DBCommand As SQLiteCommand
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
@@ -2708,7 +2215,6 @@ RevertToOldFileVersions:
         DBCommand = Nothing
 
     End Sub
-
 
 #End Region
 

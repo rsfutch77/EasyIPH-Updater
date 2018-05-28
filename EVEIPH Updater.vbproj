@@ -87,6 +87,7 @@
     <Import Include="System.Xml.Linq" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ApplicationEvents.vb" />
     <Compile Include="frmErrorDB.designer.vb">
       <DependentUpon>frmErrorDB.vb</DependentUpon>
     </Compile>
