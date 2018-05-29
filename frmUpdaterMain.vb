@@ -73,8 +73,7 @@ Public Class frmUpdaterMain
     Public ThrownError As String
 
     Public AppDataRoamingFolder As String ' Where the dynamic files are located
-    Public ROOT_FOLDER As String ' Where the root folder is located, that has the IPH exe and other files we can update that are not dynamically updated in IPH
-    Public EVEIPH_SHELL_PATH As String ' Where to shell back to
+    Public ROOT_FOLDER As String = "" ' Where the root folder is located, that has the IPH exe and other files we can update that are not dynamically updated in IPH
     Public Const TempUpdatePath As String = "EVE IPH Updates" ' Where Updates will be downloaded to and moved to the main directories
     Public Const DynamicAppDataPath As String = "EVE IPH"
 
@@ -98,18 +97,11 @@ Public Class frmUpdaterMain
         InitializeComponent()
 
         Try
-            ' Find out if we are running all in the current folder with the EXE or with updates and the DB in the appdata folder
-            If File.Exists(EVEIPH_EXE) Then
-                ' Single folder, so set the path variables to it
-                AppDataRoamingFolder = ""
-            Else
-                ' They ran the installer (or we assume they did) and all the files are updated in the appdata/roaming folder
-                AppDataRoamingFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), DynamicAppDataPath)
-            End If
+
+            ' This is the current folder we are working in, to download and move updates
+            AppDataRoamingFolder = Path.GetDirectoryName(Application.ExecutablePath)
 
             ' The root folder where the exe is located and other files we want to update - this is the installation directory
-            ROOT_FOLDER = ""
-
             ' Get the operating folder from arguments set when shelled
             If Environment.GetCommandLineArgs.Count > 1 Then ' First argument is the filename of the executing program
                 For i = 1 To Environment.GetCommandLineArgs.Count - 1
@@ -117,7 +109,8 @@ Public Class frmUpdaterMain
                 Next
             End If
 
-            EVEIPH_SHELL_PATH = Path.Combine(ROOT_FOLDER, EVEIPH_EXE)
+            ' Need to strip off any end spaces for use
+            ROOT_FOLDER = Trim(ROOT_FOLDER)
 
             ' Set test platform
             If File.Exists("Test.txt") Then
@@ -179,7 +172,8 @@ Public Class frmUpdaterMain
 
         Dim NewRootFolder As String
 
-        Dim RecordCount As Integer
+        Dim RecordCount As Integer = 0
+        Dim Counter As Integer = 0
         Dim CheckFile As String ' For checking if the file downloads or not
         Dim UpdateComplete As Boolean = False
 
@@ -265,7 +259,7 @@ Public Class frmUpdaterMain
 
         ' Now download all in the list if the server has newer versions
         RecordCount = ServerFileList.Count - 1
-        For i = 0 To RecordCount
+        For Each ServerFileRecord In ServerFileList
 
             If (Worker.CancellationPending = True) Then
                 e.Cancel = True
@@ -273,18 +267,18 @@ Public Class frmUpdaterMain
             End If
 
             ' Get the MD5 from each filename in the list and compare to XML, if different, download the update
-            If ServerFileList(i).Name = EVE_IMAGES_ZIP Or ServerFileList(i).Name = EVE_DB Then
+            If ServerFileRecord.Name = EVE_IMAGES_ZIP Or ServerFileRecord.Name = EVE_DB Then
                 ' Zip file of images or the DB, so special processing
                 ' Zip file is in a folder after update and DB will have a different MD5 after it is updated
                 ' Need to load the local MD5 data from the Local XML since the folder doesn't have one MD5
                 If LocalFileList.Count <> 0 Then
                     For j = 0 To LocalFileList.Count - 1
                         ' Find the MD5 for the EVEDB or Image Zip file
-                        If ServerFileList(i).Name = LocalFileList(j).Name Then
+                        If ServerFileRecord.Name = LocalFileList(j).Name Then
                             ' For the zip file, save the name of the current image folder (based on xml file)
-                            If ServerFileList(i).Name = EVE_IMAGES_ZIP Then
+                            If ServerFileRecord.Name = EVE_IMAGES_ZIP Then
                                 EVEImagesLocalFolderName = LocalFileList(j).Name.Substring(0, Len(LocalFileList(j).Name) - 4)
-                            ElseIf ServerFileList(i).Name = EVE_DB Then
+                            ElseIf ServerFileRecord.Name = EVE_DB Then
                                 EVEDBLocalFileVersion = LocalFileList(j).Version
                             End If
 
@@ -298,16 +292,16 @@ Public Class frmUpdaterMain
                     EVEDBLocalFileVersion = EVE_DB
                 End If
             Else
-                ' All files other than the DB and Updater are run from the Root folder - Images and db a special exception above
-                LocalFileMD5 = MD5CalcFile(Path.Combine(ROOT_FOLDER, ServerFileList(i).Name))
+                ' These are straight MD5 file checks - Images and db a special exception above
+                LocalFileMD5 = MD5CalcFile(Path.Combine(GetNewRootFolder(ServerFileRecord.Name), ServerFileRecord.Name))
             End If
 
             ' Compare the MD5's and see if we download the new file
-            If LocalFileMD5 <> ServerFileList(i).MD5 Then
+            If LocalFileMD5 <> ServerFileRecord.MD5 Then
 
                 ' Need to update, download to updates folder for later update
                 Me.Invoke(UpdateStatusDelegate, True, "")
-                CheckFile = DownloadFileFromServer(ServerFileList(i).URL, Path.Combine(AppDataRoamingFolder, TempUpdatePath, ServerFileList(i).Name))
+                CheckFile = DownloadFileFromServer(ServerFileRecord.URL, Path.Combine(AppDataRoamingFolder, TempUpdatePath, ServerFileRecord.Name))
 
                 If (Worker.CancellationPending = True) Then
                     e.Cancel = True
@@ -321,20 +315,20 @@ Public Class frmUpdaterMain
                 Else
                     ' Check the file MD5 to make sure we got a good download. If not, try one more time
                     ' If they don't have a local file (which will have a blank MD5) then just go with what they got
-                    If ServerFileList(i).MD5 <> NO_LOCAL_XML_FILE Then
+                    If ServerFileRecord.MD5 <> NO_LOCAL_XML_FILE Then
                         ' Get the file size to check
                         Dim infoReader As System.IO.FileInfo
                         infoReader = My.Computer.FileSystem.GetFileInfo(CheckFile)
                         ' Still bad MD5 or the file is 0 bytes
-                        If MD5CalcFile(CheckFile) <> ServerFileList(i).MD5 Or infoReader.Length = 0 Then
-                            CheckFile = DownloadFileFromServer(ServerFileList(i).URL, Path.Combine(AppDataRoamingFolder, TempUpdatePath, ServerFileList(i).Name))
+                        If MD5CalcFile(CheckFile) <> ServerFileRecord.MD5 Or infoReader.Length = 0 Then
+                            CheckFile = DownloadFileFromServer(ServerFileRecord.URL, Path.Combine(AppDataRoamingFolder, TempUpdatePath, ServerFileRecord.Name))
 
                             If (Worker.CancellationPending = True) Then
                                 e.Cancel = True
                                 Exit Sub
                             End If
 
-                            If MD5CalcFile(CheckFile) <> ServerFileList(i).MD5 Or CheckFile = "" Then
+                            If MD5CalcFile(CheckFile) <> ServerFileRecord.MD5 Or CheckFile = "" Then
                                 ProgramErrorLocation = "Download Corrupted."
                                 Exit Sub
                             End If
@@ -342,7 +336,7 @@ Public Class frmUpdaterMain
                     End If
                 End If
                 ' Record the file we are upating
-                UpdateFileList.Add(ServerFileList(i))
+                UpdateFileList.Add(ServerFileRecord)
             End If
 
             Me.Invoke(UpdateStatusDelegate, False, "")
@@ -358,7 +352,8 @@ Public Class frmUpdaterMain
 
         ' Try to update the old files, delete, and rename to new
         RecordCount = UpdateFileList.Count - 1
-        For i = 0 To RecordCount
+        Counter = 0
+        For Each UpdateFileListRecord In UpdateFileList
 
             If (Worker.CancellationPending = True) Then
                 e.Cancel = True
@@ -366,19 +361,19 @@ Public Class frmUpdaterMain
             Else
                 ' Report progress.
                 If RecordCount > 0 Then
-                    Worker.ReportProgress((i / RecordCount) + 1 * 10)
+                    Worker.ReportProgress((Counter / RecordCount) + 1 * 10)
                 End If
             End If
 
             ' Now that we have the files downloaded, run special updates for DB and images (Zipped), the others are just saved already
-            If UpdateFileList(i).Name.Substring(UpdateFileList(i).Name.Length - 7) = ".sqlite" Then
+            If UpdateFileListRecord.Name.Substring(UpdateFileListRecord.Name.Length - 7) = ".sqlite" Then
 
                 ' Open databases, if no database file, so just exit and use downloaded one
-                If File.Exists(UpdateFileList(i).Name) Then
-                    DBOLD.ConnectionString = DATASOURCESTRING & UpdateFileList(i).Name
+                If File.Exists(UpdateFileListRecord.Name) Then
+                    DBOLD.ConnectionString = DATASOURCESTRING & UpdateFileListRecord.Name
                     DBOLD.Open()
 
-                    DBNEW.ConnectionString = DATASOURCESTRING & Path.Combine(AppDataRoamingFolder, TempUpdatePath, UpdateFileList(i).Name)
+                    DBNEW.ConnectionString = DATASOURCESTRING & Path.Combine(AppDataRoamingFolder, TempUpdatePath, UpdateFileListRecord.Name)
                     DBNEW.Open()
 
                     ' Open both DBs here and update through ref
@@ -428,7 +423,7 @@ Public Class frmUpdaterMain
                     SQL = ""
                 End If
 
-            ElseIf UpdateFileList(i).Name = EVE_IMAGES_ZIP Then
+            ElseIf UpdateFileListRecord.Name = EVE_IMAGES_ZIP Then
                 Me.Invoke(UpdateStatusDelegate, False, "Installing Image Updates...")
                 ProgramErrorLocation = "Cannot copy images"
 
@@ -441,6 +436,8 @@ Public Class frmUpdaterMain
                 ProgramErrorLocation = ""
                 SQL = ""
             End If
+
+            Counter += 1
         Next
 
         ProgramErrorLocation = ""
@@ -565,11 +562,11 @@ RevertToOldFileVersions:
 
         ' Rename all files/folders 
         If Not IsNothing(UpdateFileList) Then
-            For i = 0 To UpdateFileList.Count - 1
+            For Each RenameFileRecord In UpdateFileList
 
-                NewRootFolder = GetNewRootFolder(UpdateFileList(i).Name)
+                NewRootFolder = GetNewRootFolder(RenameFileRecord.Name)
 
-                If UpdateFileList(i).Name = EVE_IMAGES_ZIP Then
+                If RenameFileRecord.Name = EVE_IMAGES_ZIP Then
                     ' Delete the new folder if the old one renamed
                     If Directory.Exists(Path.Combine(NewRootFolder, OLD_PREFIX & EVEImagesNewLocalFolderName)) Then
                         ' Delete it
@@ -581,7 +578,7 @@ RevertToOldFileVersions:
                     Directory.Move(Path.Combine(NewRootFolder, EVEImagesLocalFolderName), Path.Combine(NewRootFolder, OLD_PREFIX & EVEImagesLocalFolderName))
                     Application.DoEvents()
 
-                ElseIf UpdateFileList(i).Name = EVE_DB Then
+                ElseIf RenameFileRecord.Name = EVE_DB Then
 
                     ' If an OLD file exists, delete new, rename old
                     If File.Exists(Path.Combine(NewRootFolder, OLD_PREFIX & EVE_DB)) Then
@@ -593,12 +590,12 @@ RevertToOldFileVersions:
 
                 Else
                     ' Only rename if old version exists
-                    If File.Exists(Path.Combine(NewRootFolder, OLD_PREFIX & UpdateFileList(i).Name)) Then
+                    If File.Exists(Path.Combine(NewRootFolder, OLD_PREFIX & RenameFileRecord.Name)) Then
                         ' Delete the new file
-                        File.Delete(Path.Combine(NewRootFolder, UpdateFileList(i).Name))
+                        File.Delete(Path.Combine(NewRootFolder, RenameFileRecord.Name))
                         Application.DoEvents()
                         ' Rename old file back 
-                        File.Move(Path.Combine(NewRootFolder, OLD_PREFIX & UpdateFileList(i).Name), Path.Combine(NewRootFolder, UpdateFileList(i).Name))
+                        File.Move(Path.Combine(NewRootFolder, OLD_PREFIX & RenameFileRecord.Name), Path.Combine(NewRootFolder, RenameFileRecord.Name))
                         Application.DoEvents()
                     End If
                 End If
@@ -622,7 +619,7 @@ RevertToOldFileVersions:
         ' need to split where the files are stored - update path (roaming) or the same folder - exe is in root path for instance
         Select Case FileName
             Case UpdaterFileName, EVE_DB, LocalXMLFileName
-                Return "" ' current folder we are working in (roaming or the root depending on install location)
+                Return AppDataRoamingFolder ' current folder we are working in (roaming or the root depending on install location)
             Case Else
                 ' Main folder for the manifest, dlls, and main exe
                 Return ROOT_FOLDER
@@ -663,74 +660,77 @@ RevertToOldFileVersions:
     Private Sub BGWorker_RunWorkerCompleted(ByVal sender As System.Object, ByVal e As RunWorkerCompletedEventArgs) Handles BGWorker.RunWorkerCompleted
         Dim ErrorText As String = ""
 
-        On Error Resume Next
+        Try
 
-        ' Allow the messagebox to pop up over the form now
-        Me.TopMost = False
+            ' Allow the messagebox to pop up over the form now
+            Me.TopMost = False
 
-        ErrorText = e.Error.ToString
-
-        ' Clean up all OLD files and folders that might be left around
-        Call CleanUpOLDFiles()
-
-        Application.UseWaitCursor = False
-
-        If e.Cancelled = True Then
-            lblUpdateMain.Text = "Update Canceled"
-            Call ShowNotifyBox("Update Canceled")
-        ElseIf (e.Error IsNot Nothing) Or (ProgramErrorLocation <> "") Then
-
-            lblUpdateMain.Text = "Update Failed."
-
-            ' Write sql and error to log
-            If SQL <> "" Then
-                ErrorText = ErrorText & " SQL: " & SQL
+            If Not IsNothing(e.Error) Then
+                ErrorText = e.Error.ToString
             End If
 
-            Call WriteMsgToLog(ErrorText)
+            ' Clean up all OLD files and folders that might be left around
+            Call CleanUpOLDFiles()
 
-            Dim MainMessage As String = "There was an error in the update. Program not updated."
+            Application.UseWaitCursor = False
 
-            If ThrownError <> "" And ProgramErrorLocation <> "" Then
-                MsgBox(MainMessage & vbCrLf & ProgramErrorLocation & vbCrLf & "Error: " & ThrownError, vbCritical, Application.ProductName)
-            ElseIf ProgramErrorLocation <> "" Then
-                MsgBox(MainMessage & vbCrLf & ProgramErrorLocation, vbCritical, Application.ProductName)
-            ElseIf ThrownError <> "" Then
-                MsgBox(MainMessage & vbCrLf & "Error: " & ThrownError, vbCritical, Application.ProductName)
+            If e.Cancelled = True Then
+                lblUpdateMain.Text = "Update Canceled"
+                Call ShowNotifyBox("Update Canceled")
+            ElseIf (e.Error IsNot Nothing) Or (ProgramErrorLocation <> "") Then
+
+                lblUpdateMain.Text = "Update Failed."
+
+                ' Write sql and error to log
+                If SQL <> "" Then
+                    ErrorText = ErrorText & " SQL: " & SQL
+                End If
+
+                Call WriteMsgToLog(ErrorText)
+
+                Dim MainMessage As String = "There was an error in the update. Program not updated."
+
+                If ThrownError <> "" And ProgramErrorLocation <> "" Then
+                    MsgBox(MainMessage & vbCrLf & ProgramErrorLocation & vbCrLf & "Error: " & ThrownError, vbCritical, Application.ProductName)
+                ElseIf ProgramErrorLocation <> "" Then
+                    MsgBox(MainMessage & vbCrLf & ProgramErrorLocation, vbCritical, Application.ProductName)
+                ElseIf ThrownError <> "" Then
+                    MsgBox(MainMessage & vbCrLf & "Error: " & ThrownError, vbCritical, Application.ProductName)
+                Else
+                    Call ShowNotifyBox(MainMessage)
+                End If
+
             Else
-                Call ShowNotifyBox(MainMessage)
+                Me.Hide()
+                lblUpdateMain.Text = "Update Complete."
+                ' We have completed the update
+                ' Copy over the old XML file and delete the old
+                If File.Exists(Path.Combine(AppDataRoamingFolder, LocalXMLFileName)) Then
+                    File.Delete(Path.Combine(AppDataRoamingFolder, LocalXMLFileName))
+                End If
+
+                File.Move(Path.Combine(AppDataRoamingFolder, TempUpdatePath, LocalXMLFileName), Path.Combine(AppDataRoamingFolder, LocalXMLFileName))
+
+                ' Finally delete the temp updates folder
+                Directory.Delete(Path.Combine(AppDataRoamingFolder, TempUpdatePath), True)
+
+                ' Wait for a second before running - might solve the problem with incorrectly suggesting an update
+                Thread.Sleep(1000)
+
+                Call ShowNotifyBox("Update Complete!")
             End If
 
-        Else
-            Me.Hide()
-            lblUpdateMain.Text = "Update Complete."
-            ' We have completed the update
-            ' Copy over the old XML file and delete the old
-            If File.Exists(Path.Combine(AppDataRoamingFolder, LocalXMLFileName)) Then
-                File.Delete(Path.Combine(AppDataRoamingFolder, LocalXMLFileName))
-            End If
+            ' Open new program
+            Dim Proc As New Process
+            Proc.StartInfo.FileName = Path.Combine(ROOT_FOLDER, EVEIPH_EXE)
+            Proc.StartInfo.WindowStyle = ProcessWindowStyle.Normal
+            Proc.Start()
 
-            File.Move(Path.Combine(AppDataRoamingFolder, TempUpdatePath, LocalXMLFileName), Path.Combine(AppDataRoamingFolder, LocalXMLFileName))
+        Catch ex As Exception
+            MsgBox("Run Worker Completed error: " & ex.ToString)
+        End Try
 
-            ' Finally delete the temp updates folder
-            Directory.Delete(Path.Combine(AppDataRoamingFolder, TempUpdatePath), True)
-
-            ' Wait for a second before running - might solve the problem with incorrectly suggesting an update
-            Thread.Sleep(1000)
-
-            Call ShowNotifyBox("Update Complete!")
-        End If
-
-        ' Shell to program
-        Dim ProcInfo As New ProcessStartInfo
-        ProcInfo.FileName = EVEIPH_SHELL_PATH
-        ProcInfo.UseShellExecute = True
-        ProcInfo.WindowStyle = ProcessWindowStyle.Normal
-
-        Process.Start(EVEIPH_SHELL_PATH)
-
-        On Error Resume Next
-        ' Done
+        ' Done, hide form and close
         Me.Hide()
         End
 
@@ -772,7 +772,10 @@ RevertToOldFileVersions:
 
         ' For reading in chunks of data
         Dim readBytes(4095) As Byte
-        ' Save in root directory
+        ' Create directory if it doesn't exist already
+        If Not Directory.Exists(Path.GetDirectoryName(FileName)) Then
+            Directory.CreateDirectory(Path.GetDirectoryName(FileName))
+        End If
         Dim writeStream As New FileStream(FileName, FileMode.Create)
         Dim bytesread As Integer
 
@@ -922,10 +925,10 @@ RevertToOldFileVersions:
 
     ' Writes a sent message to a log file
     Public Sub WriteMsgToLog(ByVal ErrorMsg As String)
-        Dim FilePath As String = "EVEIPH.log"
+        Dim FilePath As String = Path.Combine(AppDataRoamingFolder, "EVEIPH.log")
         Dim AllText() As String
 
-        MsgBox(ErrorMsg)
+        MsgBox("Updater error: " & ErrorMsg)
 
         ' Only write to log if there is an error to write
         If Trim(ErrorMsg) <> "" Then
@@ -997,8 +1000,7 @@ RevertToOldFileVersions:
             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20)) & ","
             SQL = SQL & BuildInsertFieldString(readerUpdate.Item(21)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(22)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(23)) & ")"
+            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(22)) & ")"
 
             Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1246,16 +1248,14 @@ RevertToOldFileVersions:
             Call BeginSQLiteTransaction(DBNEW)
 
             While readerUpdate.Read
-                SQL = "INSERT INTO ASSETS (ID, ItemID, LocationID, TypeID, Quantity, Flag, Singleton, RawQuantity) VALUES ("
+                SQL = "INSERT INTO ASSETS VALUES ("
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7))
-                SQL = SQL & ")"
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ")"
 
                 Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1533,8 +1533,10 @@ RevertToOldFileVersions:
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9))
-                SQL = SQL & ")"
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ")"
 
                 Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1699,13 +1701,7 @@ RevertToOldFileVersions:
                     SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
                     SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20)) & ","
                     SQL = SQL & BuildInsertFieldString(readerUpdate.Item(21)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(22)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(23)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(24)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(25)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(26)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(27)) & ","
-                    SQL = SQL & BuildInsertFieldString(CInt(readerUpdate.Item(28)))
+                    SQL = SQL & BuildInsertFieldString(CInt(readerUpdate.Item(22)))
                     SQL = SQL & ")"
 
                     DBCommand = New SQLiteCommand(SQL, DBNEW)
@@ -1787,17 +1783,6 @@ RevertToOldFileVersions:
         ' See if they have the percentile values first
         ProgramErrorLocation = "Cannot copy Item Price Cache"
 
-        On Error Resume Next
-        SQL = "SELECT allPercentile FROM ITEM_PRICES_CACHE"
-        DBCommand = New SQLiteCommand(SQL, DBOLD)
-        readerCheck = DBCommand.ExecuteReader
-        ' If it didn't error, they have the fields
-        If Err.Number = 0 Then
-            HavePrecentiles = True
-            readerCheck.Close()
-        Else
-            HavePrecentiles = False
-        End If
         On Error GoTo 0
 
         readerCheck = Nothing
@@ -1818,74 +1803,20 @@ RevertToOldFileVersions:
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                SQL = SQL & "0,"
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-                SQL = SQL & "0,"
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ","
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
-                SQL = SQL & "0,"
                 SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20))
-                SQL = SQL & ")"
-
-                DBCommand = New SQLiteCommand(SQL, DBNEW)
-                DBCommand.ExecuteNonQuery()
-
-            End While
-            readerUpdate.Close()
-        Else
-            SQL = "SELECT * FROM ITEM_PRICES_CACHE"
-            DBCommand = New SQLiteCommand(SQL, DBOLD)
-            readerUpdate = DBCommand.ExecuteReader
-
-            While readerUpdate.Read
-                SQL = "INSERT INTO ITEM_PRICES_CACHE VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                If IsDBNull(readerUpdate.Item(7)) Then
-                    SQL = SQL & "0,"
-                Else
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                End If
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-                If IsDBNull(readerUpdate.Item(7)) Then
-                    SQL = SQL & "14,"
-                Else
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
-                End If
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20)) & ","
-                If IsDBNull(readerUpdate.Item(21)) Then
-                    SQL = SQL & "21,"
-                Else
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(21)) & ","
-                End If
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(22)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(23))
-                SQL = SQL & ")"
+                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20)) & ")"
 
                 DBCommand = New SQLiteCommand(SQL, DBNEW)
                 DBCommand.ExecuteNonQuery()
