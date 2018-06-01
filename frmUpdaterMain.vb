@@ -369,8 +369,8 @@ Public Class frmUpdaterMain
             If UpdateFileListRecord.Name.Substring(UpdateFileListRecord.Name.Length - 7) = ".sqlite" Then
 
                 ' Open databases, if no database file, so just exit and use downloaded one
-                If File.Exists(UpdateFileListRecord.Name) Then
-                    DBOLD.ConnectionString = DATASOURCESTRING & UpdateFileListRecord.Name
+                If File.Exists(Path.Combine(AppDataRoamingFolder, UpdateFileListRecord.Name)) Then
+                    DBOLD.ConnectionString = DATASOURCESTRING & Path.Combine(AppDataRoamingFolder, UpdateFileListRecord.Name)
                     DBOLD.Open()
 
                     DBNEW.ConnectionString = DATASOURCESTRING & Path.Combine(AppDataRoamingFolder, TempUpdatePath, UpdateFileListRecord.Name)
@@ -582,7 +582,7 @@ RevertToOldFileVersions:
 
                     ' If an OLD file exists, delete new, rename old
                     If File.Exists(Path.Combine(NewRootFolder, OLD_PREFIX & EVE_DB)) Then
-                        File.Delete(Path.Combine(NewRootFolder, OLD_PREFIX, EVE_DB))
+                        File.Delete(Path.Combine(NewRootFolder, OLD_PREFIX & EVE_DB))
                         Application.DoEvents()
                         File.Move(Path.Combine(AppDataRoamingFolder, OLD_PREFIX & EVE_DB), Path.Combine(AppDataRoamingFolder, EVE_DB))
                         Application.DoEvents()
@@ -863,7 +863,7 @@ RevertToOldFileVersions:
 
     End Function
 
-    ' Formats the value sent to what we want to insert inot the table field
+    ' Formats the value sent to what we want to insert into the table field
     Private Function BuildInsertFieldString(ByVal inValue As Object) As String
         Dim CheckNullValue As Object
         Dim OutputString As String
@@ -1037,6 +1037,13 @@ RevertToOldFileVersions:
             ' They don't have the table, so exit because this is a required table and will come with nothing in it to start
             Exit Sub
         End If
+
+        '' See if they have new fields for table
+        'On Error Resume Next
+        'SQL = "SELECT 'X' FROM ESI_CORPORATION_DATA"
+        'DBCommand = New SQLiteCommand(SQL, DBOLD)
+        'readerUpdate = DBCommand.ExecuteReader
+        'On Error GoTo 0
 
         DBCommand = New SQLiteCommand(SQL, DBOLD)
         readerUpdate = DBCommand.ExecuteReader
