@@ -383,6 +383,7 @@ Public Class frmUpdaterMain
                     Call UpdateESICharacterDataTable()
                     Call UpdateESICorporationDataTable()
                     Call UpdateESIPublicCacheDatesTable()
+                    Call UpdateESICorporationRolesTable()
 
                     Call UpdateAssetsTable()
                     Call UpdateAssetLocationsTable()
@@ -978,29 +979,29 @@ RevertToOldFileVersions:
         While readerUpdate.Read
 
             SQL = "INSERT INTO ESI_CHARACTER_DATA VALUES ("
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(21)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(22)) & ")"
+            SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(4)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(5)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(6)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(7)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(8)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(9)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(10)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(11)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(12)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(13)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(14)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(15)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(16)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(17)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(18)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(19)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(20)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(21)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(22)) & ")"
 
             Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1018,8 +1019,9 @@ RevertToOldFileVersions:
         Dim DBCommand As SQLiteCommand
         Dim readerCheck As SQLiteDataReader
         Dim readerUpdate As SQLiteDataReader
-        Dim SQL As String
-        Dim HaveNewAPIFields As Boolean
+        Dim SQL As String = ""
+        Dim SQL2 As String = ""
+        Dim HaveNewFields As Boolean
 
         ProgramErrorLocation = "Cannot copy ESI_CORPORATION_DATA"
 
@@ -1038,12 +1040,18 @@ RevertToOldFileVersions:
             Exit Sub
         End If
 
-        '' See if they have new fields for table
-        'On Error Resume Next
-        'SQL = "SELECT 'X' FROM ESI_CORPORATION_DATA"
-        'DBCommand = New SQLiteCommand(SQL, DBOLD)
-        'readerUpdate = DBCommand.ExecuteReader
-        'On Error GoTo 0
+        ' See if they have new fields for table
+        On Error Resume Next
+        SQL2 = "SELECT CORP_ROLES_CACHE_DATE FROM ESI_CORPORATION_DATA"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        If readerUpdate.Read Then
+            HaveNewFields = True
+        Else
+            HaveNewFields = False
+        End If
 
         DBCommand = New SQLiteCommand(SQL, DBOLD)
         readerUpdate = DBCommand.ExecuteReader
@@ -1051,22 +1059,49 @@ RevertToOldFileVersions:
         Call BeginSQLiteTransaction(DBNEW)
         While readerUpdate.Read
 
-            SQL = "INSERT INTO ESI_CORPORATION_DATA VALUES ("
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ")"
+            If Not HaveNewFields Then
+                SQL = "INSERT INTO ESI_CORPORATION_DATA VALUES ("
+                SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL &= BuildInsertFieldString(0) & "," ' FactionID
+                SQL &= BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                SQL &= BuildInsertFieldString(0) & "," ' Home_Station_id
+                SQL &= BuildInsertFieldString(0) & "," ' Shares
+                SQL &= BuildInsertFieldString(readerUpdate.Item(7)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(8)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(9)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(10)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(11)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(12)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(13)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(14)) & ","
+                SQL &= "NULL)" ' Roles cache date
+            Else
+                SQL = "INSERT INTO ESI_CORPORATION_DATA VALUES ("
+                SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(7)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(8)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(9)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(10)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(11)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(12)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(13)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(14)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(15)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(16)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(17)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(18)) & ")"
+            End If
 
             Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1111,9 +1146,56 @@ RevertToOldFileVersions:
         While readerUpdate.Read
 
             SQL = "INSERT INTO ESI_PUBLIC_CACHE_DATES VALUES ("
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ")"
+            SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ")"
+
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+        End While
+
+        Call CommitSQLiteTransaction(DBNEW)
+
+        readerUpdate.Close()
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateESICorporationRolesTable()
+        Dim DBCommand As SQLiteCommand
+        Dim readerCheck As SQLiteDataReader
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+        Dim HaveNewAPIFields As Boolean
+
+        ProgramErrorLocation = "Cannot copy ESI_CORPORATION_ROLES"
+
+        ' See if they have the table
+        On Error Resume Next
+        SQL = "SELECT 'X' FROM ESI_CORPORATION_ROLES"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        If Not IsNothing(readerUpdate) Then
+            ' They have it
+            SQL = "SELECT * FROM ESI_CORPORATION_ROLES"
+        Else
+            ' They don't have the table, so exit because this is a required table and will come with nothing in it to start
+            Exit Sub
+        End If
+
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+
+        Call BeginSQLiteTransaction(DBNEW)
+        While readerUpdate.Read
+
+            SQL = "INSERT INTO ESI_CORPORATION_ROLES VALUES ("
+            SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ")"
 
             Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1158,22 +1240,22 @@ RevertToOldFileVersions:
         While readerUpdate.Read
 
             SQL = "INSERT INTO SAVED_FACILITIES VALUES ("
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ")"
+            SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(4)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(5)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(6)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(7)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(8)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(9)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(10)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(11)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(12)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(13)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(14)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(15)) & ")"
 
             Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1218,12 +1300,12 @@ RevertToOldFileVersions:
         While readerUpdate.Read
 
             SQL = "INSERT INTO UPWELL_STRUCTURES_INSTALLED_MODULES VALUES ("
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ")"
+            SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(4)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(5)) & ")"
 
             Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1256,13 +1338,13 @@ RevertToOldFileVersions:
 
             While readerUpdate.Read
                 SQL = "INSERT INTO ASSETS VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ")"
+                SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(6)) & ")"
 
                 Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1297,11 +1379,11 @@ RevertToOldFileVersions:
 
             While readerUpdate.Read
                 SQL = "INSERT INTO ASSET_LOCATIONS (EnumAssetType, ID, LocationID, FlagID) VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3))
-                SQL = SQL & ")"
+                SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(3))
+                SQL &= ")"
 
                 Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1332,14 +1414,14 @@ RevertToOldFileVersions:
 
         While readerUpdate.Read
             SQL = "INSERT INTO CHARACTER_SKILLS VALUES ("
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6))
-            SQL = SQL & ")"
+            SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(4)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(5)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(6))
+            SQL &= ")"
 
             Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1367,12 +1449,12 @@ RevertToOldFileVersions:
 
         While readerUpdate.Read
             SQL = "INSERT INTO CHARACTER_STANDINGS VALUES ("
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4))
-            SQL = SQL & ")"
+            SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(4))
+            SQL &= ")"
 
             Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1404,13 +1486,13 @@ RevertToOldFileVersions:
 
             While readerUpdate.Read
                 SQL = "INSERT INTO CURRENT_RESEARCH_AGENTS VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5))
-                SQL = SQL & ")"
+                SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(5))
+                SQL &= ")"
 
                 Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1446,15 +1528,15 @@ RevertToOldFileVersions:
 
             While readerUpdate.Read
                 SQL = "INSERT INTO MARKET_HISTORY VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7))
-                SQL = SQL & ")"
+                SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(7))
+                SQL &= ")"
 
                 Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1491,10 +1573,10 @@ RevertToOldFileVersions:
 
             While readerUpdate.Read
                 SQL = "INSERT INTO MARKET_HISTORY_UPDATE_CACHE VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2))
-                SQL = SQL & ")"
+                SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(2))
+                SQL &= ")"
 
                 Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1531,19 +1613,19 @@ RevertToOldFileVersions:
 
             While readerUpdate.Read
                 SQL = "INSERT INTO MARKET_ORDERS VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ")"
+                SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(7)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(8)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(9)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(10)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(11)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(12)) & ")"
 
                 Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1580,10 +1662,10 @@ RevertToOldFileVersions:
 
             While readerUpdate.Read
                 SQL = "INSERT INTO MARKET_ORDERS_UPDATE_CACHE VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2))
-                SQL = SQL & ")"
+                SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(2))
+                SQL &= ")"
 
                 Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1622,14 +1704,14 @@ RevertToOldFileVersions:
 
             While readerUpdate.Read
                 SQL = "INSERT INTO PRICE_PROFILES VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6))
-                SQL = SQL & ")"
+                SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(6))
+                SQL &= ")"
 
                 Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1686,30 +1768,30 @@ RevertToOldFileVersions:
                 ' Copy the current data
                 While readerUpdate.Read
                     SQL = "INSERT INTO INDUSTRY_JOBS VALUES ("
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(21)) & ","
-                    SQL = SQL & BuildInsertFieldString(CInt(readerUpdate.Item(22)))
-                    SQL = SQL & ")"
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(7)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(8)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(9)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(10)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(11)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(12)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(13)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(14)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(15)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(16)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(17)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(18)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(19)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(20)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(21)) & ","
+                    SQL &= BuildInsertFieldString(CInt(readerUpdate.Item(22)))
+                    SQL &= ")"
 
                     DBCommand = New SQLiteCommand(SQL, DBNEW)
                     DBCommand.ExecuteNonQuery()
@@ -1762,10 +1844,10 @@ RevertToOldFileVersions:
 
         While readerUpdate.Read
             SQL = "UPDATE ITEM_PRICES "
-            SQL = SQL & "SET PRICE = " & BuildInsertFieldString(readerUpdate.GetDouble(1)) & ", "
-            SQL = SQL & "ADJUSTED_PRICE = " & BuildInsertFieldString(readerUpdate.GetDouble(2)) & ", "
-            SQL = SQL & "AVERAGE_PRICE = " & BuildInsertFieldString(readerUpdate.GetDouble(3)) & " "
-            SQL = SQL & " WHERE ITEM_ID = " & BuildInsertFieldString(readerUpdate.GetValue(0))
+            SQL &= "SET PRICE = " & BuildInsertFieldString(readerUpdate.GetDouble(1)) & ", "
+            SQL &= "ADJUSTED_PRICE = " & BuildInsertFieldString(readerUpdate.GetDouble(2)) & ", "
+            SQL &= "AVERAGE_PRICE = " & BuildInsertFieldString(readerUpdate.GetDouble(3)) & " "
+            SQL &= " WHERE ITEM_ID = " & BuildInsertFieldString(readerUpdate.GetValue(0))
 
             DBCommand = New SQLiteCommand(SQL, DBNEW)
             DBCommand.ExecuteNonQuery()
@@ -1803,27 +1885,27 @@ RevertToOldFileVersions:
 
             While readerUpdate.Read
                 SQL = "INSERT INTO ITEM_PRICES_CACHE VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20)) & ")"
+                SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(7)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(8)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(9)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(10)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(11)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(12)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(13)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(14)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(15)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(16)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(17)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(18)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(19)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(20)) & ")"
 
                 DBCommand = New SQLiteCommand(SQL, DBNEW)
                 DBCommand.ExecuteNonQuery()
@@ -1855,22 +1937,22 @@ RevertToOldFileVersions:
         Call BeginSQLiteTransaction(DBNEW)
         While readerUpdate.Read
             SQL = "INSERT INTO OWNED_BLUEPRINTS VALUES ("
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-            SQL = SQL & BuildInsertFieldString(CInt(readerUpdate.Item(7))) & ","
-            SQL = SQL & BuildInsertFieldString(CInt(readerUpdate.Item(8))) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-            SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14))
-            SQL = SQL & ")"
+            SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(4)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(5)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(6)) & ","
+            SQL &= BuildInsertFieldString(CInt(readerUpdate.Item(7))) & ","
+            SQL &= BuildInsertFieldString(CInt(readerUpdate.Item(8))) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(9)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(10)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(11)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(12)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(13)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(14))
+            SQL &= ")"
 
             DBCommand = New SQLiteCommand(SQL, DBNEW)
             DBCommand.ExecuteNonQuery()
@@ -1908,9 +1990,9 @@ RevertToOldFileVersions:
 
             While readerUpdate.Read
                 SQL = "INSERT INTO FW_SYSTEM_UPGRADES VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1))
-                SQL = SQL & ")"
+                SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(1))
+                SQL &= ")"
 
                 Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1949,14 +2031,14 @@ RevertToOldFileVersions:
 
             While readerUpdate.Read
                 SQL = "INSERT INTO INDUSTRY_FACILITIES VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6))
-                SQL = SQL & ")"
+                SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(6))
+                SQL &= ")"
 
                 Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1995,12 +2077,12 @@ RevertToOldFileVersions:
 
             While readerUpdate.Read
                 SQL = "INSERT INTO INDUSTRY_SYSTEMS_COST_INDICIES VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4))
-                SQL = SQL & ")"
+                SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(4))
+                SQL &= ")"
 
                 Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -2049,13 +2131,13 @@ RevertToOldFileVersions:
         ProgramErrorLocation = "Cannot copy STATION_FACILITIES Data table"
 
         SQL = " SELECT COUNT(*) FROM (SELECT DISTINCT FACILITY_ID, FACILITY_NAME, SOLAR_SYSTEM_ID, SOLAR_SYSTEM_NAME, SOLAR_SYSTEM_SECURITY, REGION_ID, REGION_NAME, "
-        SQL = SQL & "FACILITY_TYPE_ID, FACILITY_TYPE, ACTIVITY_ID, FACILITY_TAX, "
+        SQL &= "FACILITY_TYPE_ID, FACILITY_TYPE, ACTIVITY_ID, FACILITY_TAX, "
         If Have6ModifierFields Then
-            SQL = SQL & "BASE_MM, BASE_TM, BASE_CM, ADDITIONAL_MM, ADDITIONAL_TM, ADDITIONAL_CM, GROUP_ID, CATEGORY_ID, COST_INDEX, OUTPOST "
+            SQL &= "BASE_MM, BASE_TM, BASE_CM, ADDITIONAL_MM, ADDITIONAL_TM, ADDITIONAL_CM, GROUP_ID, CATEGORY_ID, COST_INDEX, OUTPOST "
         Else
-            SQL = SQL & "MATERIAL_MULTIPLIER, TIME_MULTIPLIER, COST_MULTIPLIER, GROUP_ID, CATEGORY_ID, COST_INDEX, OUTPOST "
+            SQL &= "MATERIAL_MULTIPLIER, TIME_MULTIPLIER, COST_MULTIPLIER, GROUP_ID, CATEGORY_ID, COST_INDEX, OUTPOST "
         End If
-        SQL = SQL & "FROM STATION_FACILITIES WHERE OUTPOST = 1)"
+        SQL &= "FROM STATION_FACILITIES WHERE OUTPOST = 1)"
         DBCommand = New SQLiteCommand(SQL, DBOLD)
         readerUpdate = DBCommand.ExecuteReader
         readerUpdate.Read()
@@ -2064,20 +2146,20 @@ RevertToOldFileVersions:
 
         ' Copy all of the outpost data to the static station table - Make sure we dump any duplicates if they still exist
         SQL = "SELECT DISTINCT FACILITY_ID, FACILITY_NAME, SOLAR_SYSTEM_ID, SOLAR_SYSTEM_NAME, SOLAR_SYSTEM_SECURITY, REGION_ID, REGION_NAME, "
-        SQL = SQL & "FACILITY_TYPE_ID, FACILITY_TYPE, ACTIVITY_ID, FACILITY_TAX, "
+        SQL &= "FACILITY_TYPE_ID, FACILITY_TYPE, ACTIVITY_ID, FACILITY_TAX, "
         If Have6ModifierFields Then
-            SQL = SQL & "BASE_MM, BASE_TM, BASE_CM, ADDITIONAL_MM, ADDITIONAL_TM, ADDITIONAL_CM, GROUP_ID, CATEGORY_ID, COST_INDEX, OUTPOST "
+            SQL &= "BASE_MM, BASE_TM, BASE_CM, ADDITIONAL_MM, ADDITIONAL_TM, ADDITIONAL_CM, GROUP_ID, CATEGORY_ID, COST_INDEX, OUTPOST "
         Else
-            SQL = SQL & "MATERIAL_MULTIPLIER, TIME_MULTIPLIER, COST_MULTIPLIER, GROUP_ID, CATEGORY_ID, COST_INDEX, OUTPOST "
+            SQL &= "MATERIAL_MULTIPLIER, TIME_MULTIPLIER, COST_MULTIPLIER, GROUP_ID, CATEGORY_ID, COST_INDEX, OUTPOST "
         End If
-        SQL = SQL & "FROM STATION_FACILITIES WHERE OUTPOST = 1"
+        SQL &= "FROM STATION_FACILITIES WHERE OUTPOST = 1"
 
         DBCommand = New SQLiteCommand(SQL, DBOLD)
         readerUpdate = DBCommand.ExecuteReader
 
         UpdateStatusDelegate = New UpdateStatusSafe(AddressOf UpdateStatus)
         Me.Invoke(UpdateStatusDelegate, True, "Updating Station Data...")
-        worker.ReportProgress(Counter)
+        Worker.ReportProgress(Counter)
 
         ' They might not have this table yet.
         If Not IsNothing(readerUpdate) Then
@@ -2088,33 +2170,33 @@ RevertToOldFileVersions:
             While readerUpdate.Read
                 ' Insert
                 SQL = "INSERT INTO STATION_FACILITIES VALUES ("
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(0)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(1)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(2)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(3)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(4)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(5)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(6)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(7)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(8)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(9)) & ","
-                SQL = SQL & BuildInsertFieldString(readerUpdate.Item(10)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(4)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(7)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(8)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(9)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(10)) & ","
                 If Have6ModifierFields Then
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11) * readerUpdate.Item(14)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12) * readerUpdate.Item(15)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13) * readerUpdate.Item(16)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(18)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(19)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(20)) & ")"
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(11) * readerUpdate.Item(14)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(12) * readerUpdate.Item(15)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(13) * readerUpdate.Item(16)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(17)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(18)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(19)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(20)) & ")"
                 Else
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(11)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(12)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(13)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(14)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(15)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(16)) & ","
-                    SQL = SQL & BuildInsertFieldString(readerUpdate.Item(17)) & ")"
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(11)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(12)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(13)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(14)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(15)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(16)) & ","
+                    SQL &= BuildInsertFieldString(readerUpdate.Item(17)) & ")"
                 End If
 
 
@@ -2122,7 +2204,7 @@ RevertToOldFileVersions:
                 Counter += 1
 
                 On Error Resume Next
-                worker.ReportProgress(CInt(Counter / Count * 100))
+                Worker.ReportProgress(CInt(Counter / Count * 100))
                 On Error GoTo 0
 
             End While
@@ -2142,7 +2224,7 @@ RevertToOldFileVersions:
 
         While readerUpdate.Read
             SQL = "UPDATE STATION_FACILITIES SET COST_INDEX = " & CStr(readerUpdate.GetDouble(2)) & " "
-            SQL = SQL & " WHERE SOLAR_SYSTEM_ID = " & CStr(readerUpdate.GetInt64(0)) & " AND ACTIVITY_ID = " & CStr(readerUpdate.GetInt32(1))
+            SQL &= " WHERE SOLAR_SYSTEM_ID = " & CStr(readerUpdate.GetInt64(0)) & " AND ACTIVITY_ID = " & CStr(readerUpdate.GetInt32(1))
             Call ExecuteNonQuerySQL(SQL, DBNEW)
         End While
 
