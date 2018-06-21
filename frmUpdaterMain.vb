@@ -1017,6 +1017,7 @@ RevertToOldFileVersions:
 
     Private Sub UpdateESICorporationDataTable()
         Dim DBCommand As SQLiteCommand
+        Dim DBCommand2 As SQLiteCommand
         Dim readerCheck As SQLiteDataReader
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String = ""
@@ -1043,15 +1044,16 @@ RevertToOldFileVersions:
         ' See if they have new fields for table
         On Error Resume Next
         SQL2 = "SELECT CORP_ROLES_CACHE_DATE FROM ESI_CORPORATION_DATA"
-        DBCommand = New SQLiteCommand(SQL, DBOLD)
-        readerUpdate = DBCommand.ExecuteReader
-        On Error GoTo 0
+        DBCommand2 = New SQLiteCommand(SQL2, DBOLD)
+        readerCheck = DBCommand2.ExecuteReader
 
-        If readerUpdate.Read Then
+        If Not IsNothing(readerCheck) Then
             HaveNewFields = True
         Else
             HaveNewFields = False
         End If
+
+        On Error GoTo 0
 
         DBCommand = New SQLiteCommand(SQL, DBOLD)
         readerUpdate = DBCommand.ExecuteReader
@@ -1115,53 +1117,6 @@ RevertToOldFileVersions:
 
     End Sub
 
-    Private Sub UpdateESIPublicCacheDatesTable()
-        Dim DBCommand As SQLiteCommand
-        Dim readerCheck As SQLiteDataReader
-        Dim readerUpdate As SQLiteDataReader
-        Dim SQL As String
-        Dim HaveNewAPIFields As Boolean
-
-        ProgramErrorLocation = "Cannot copy ESI_PUBLIC_CACHE_DATES"
-
-        ' See if they have the table
-        On Error Resume Next
-        SQL = "SELECT 'X' FROM ESI_PUBLIC_CACHE_DATES"
-        DBCommand = New SQLiteCommand(SQL, DBOLD)
-        readerUpdate = DBCommand.ExecuteReader
-        On Error GoTo 0
-
-        If Not IsNothing(readerUpdate) Then
-            ' They have it
-            SQL = "SELECT * FROM ESI_PUBLIC_CACHE_DATES"
-        Else
-            ' They don't have the table, so exit because this is a required table and will come with nothing in it to start
-            Exit Sub
-        End If
-
-        DBCommand = New SQLiteCommand(SQL, DBOLD)
-        readerUpdate = DBCommand.ExecuteReader
-
-        Call BeginSQLiteTransaction(DBNEW)
-        While readerUpdate.Read
-
-            SQL = "INSERT INTO ESI_PUBLIC_CACHE_DATES VALUES ("
-            SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
-            SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
-            SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ")"
-
-            Call ExecuteNonQuerySQL(SQL, DBNEW)
-
-        End While
-
-        Call CommitSQLiteTransaction(DBNEW)
-
-        readerUpdate.Close()
-        readerUpdate = Nothing
-        DBCommand = Nothing
-
-    End Sub
-
     Private Sub UpdateESICorporationRolesTable()
         Dim DBCommand As SQLiteCommand
         Dim readerCheck As SQLiteDataReader
@@ -1197,6 +1152,53 @@ RevertToOldFileVersions:
             SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
             SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
             SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ")"
+
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+        End While
+
+        Call CommitSQLiteTransaction(DBNEW)
+
+        readerUpdate.Close()
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateESIPublicCacheDatesTable()
+        Dim DBCommand As SQLiteCommand
+        Dim readerCheck As SQLiteDataReader
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+        Dim HaveNewAPIFields As Boolean
+
+        ProgramErrorLocation = "Cannot copy ESI_PUBLIC_CACHE_DATES"
+
+        ' See if they have the table
+        On Error Resume Next
+        SQL = "SELECT 'X' FROM ESI_PUBLIC_CACHE_DATES"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        If Not IsNothing(readerUpdate) Then
+            ' They have it
+            SQL = "SELECT * FROM ESI_PUBLIC_CACHE_DATES"
+        Else
+            ' They don't have the table, so exit because this is a required table and will come with nothing in it to start
+            Exit Sub
+        End If
+
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+
+        Call BeginSQLiteTransaction(DBNEW)
+        While readerUpdate.Read
+
+            SQL = "INSERT INTO ESI_PUBLIC_CACHE_DATES VALUES ("
+            SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ")"
 
             Call ExecuteNonQuerySQL(SQL, DBNEW)
 
