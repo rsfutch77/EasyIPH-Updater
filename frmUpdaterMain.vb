@@ -1195,7 +1195,8 @@ RevertToOldFileVersions:
             SQL = "INSERT INTO ESI_CORPORATION_ROLES VALUES ("
             SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
             SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
-            SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ")"
+            SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ")"
 
             Call ExecuteNonQuerySQL(SQL, DBNEW)
 
