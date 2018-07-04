@@ -787,7 +787,7 @@ RevertToOldFileVersions:
 
         Try 'Checks if the file exist
             Request = DirectCast(HttpWebRequest.Create(DownloadURL), HttpWebRequest)
-            'Request.Proxy = GetProxyData()
+            Request.Proxy = GetProxyData()
             Request.Credentials = CredentialCache.DefaultCredentials ' Added 9/27 to attempt to fix error: (407) Proxy Authentication Required.
             Request.Timeout = 50000
             Response = CType(Request.GetResponse, HttpWebResponse)
@@ -874,15 +874,17 @@ RevertToOldFileVersions:
 
         If CStr(CheckNullValue) <> "null" Then
             ' Not null, so format
-            If inValue.GetType.Name <> "String" Then
+            If inValue.GetType.Name = "DateTime" Then
+                OutputString = "'" & Format(inValue, "yyyy-MM-dd HH:mm:ss") & "'"
+            ElseIf inValue.GetType.Name <> "String" Then
                 ' Just a value, so no quotes needed
                 OutputString = CStr(inValue)
             Else
                 ' String, so check for appostrophes and add quotes
-                OutputString = "'" & CheckString(CStr(inValue)) & "'"
+                OutputString = "'" & FormatDBString(CStr(inValue)) & "'"
             End If
         Else
-            OutputString = "null"
+            OutputString = "NULL"
         End If
 
         Return OutputString
@@ -916,7 +918,7 @@ RevertToOldFileVersions:
         Call ExecuteNonQuerySQL("END;", DB)
     End Sub
 
-    Public Function CheckString(ByVal inStrVar As String) As String
+    Public Function FormatDBString(ByVal inStrVar As String) As String
         ' Anything with quote mark in name it won't correctly load - need to replace with double quotes
         If InStr(inStrVar, "'") <> 0 Then
             inStrVar = Replace(inStrVar, "'", "''")
@@ -945,6 +947,79 @@ RevertToOldFileVersions:
         End If
 
     End Sub
+
+    Public Function GetProxyData() As WebProxy
+        Dim ReturnProxy As WebProxy
+
+        Dim ProxyAddress As String = GetSettingValue(SettingTypes.TypeString, "ApplicationSettings", "ProxyAddress", "")
+        Dim ProxyPort As Integer = GetSettingValue(SettingTypes.TypeInteger, "ApplicationSettings", "ProxyPort", 0)
+
+        If ProxyAddress <> "" Then
+            If ProxyPort <> 0 Then
+                ReturnProxy = New WebProxy(ProxyAddress, ProxyPort)
+            Else
+                ReturnProxy = New WebProxy(ProxyAddress)
+            End If
+
+            ReturnProxy = New WebProxy(ProxyAddress, ProxyPort)
+            ReturnProxy.Credentials = CredentialCache.DefaultCredentials
+
+            Return ReturnProxy
+        Else
+            Return Nothing
+        End If
+
+    End Function
+
+    ' Gets a value from a referenced XML file by searching for it
+    Private Function GetSettingValue(ObjectType As SettingTypes, RootElement As String, ElementString As String, DefaultValue As Object) As Object
+        Dim m_xmld As New XmlDocument
+        Dim m_nodelist As XmlNodeList
+        Dim FilePath As String = Path.ChangeExtension(Path.Combine(AppDataRoamingFolder, "Settings", "ApplicationSettings"), ".xml")
+        Dim TempValue As String
+
+        'Load the Xml file
+        m_xmld.Load(FilePath)
+
+        'Get the settings
+        m_nodelist = m_xmld.SelectNodes("/" & RootElement & "/" & ElementString)
+
+        If Not IsNothing(m_nodelist.Item(0)) Then
+            ' Should only be one
+            TempValue = m_nodelist.Item(0).InnerText
+
+            ' If blank, then return default
+            If TempValue = "" Then
+                Return DefaultValue
+            End If
+
+            If TempValue = "False" Or TempValue = "True" Then
+                ' Change to type boolean
+                ObjectType = SettingTypes.TypeBoolean
+            End If
+
+            ' Found it, return the cast
+            Select Case ObjectType
+                Case SettingTypes.TypeBoolean
+                    Return CBool(TempValue)
+                Case SettingTypes.TypeDouble
+                    Return CDbl(TempValue)
+                Case SettingTypes.TypeInteger
+                    Return CInt(TempValue)
+                Case SettingTypes.TypeString
+                    Return CStr(TempValue)
+                Case SettingTypes.TypeLong
+                    Return CLng(TempValue)
+            End Select
+
+        Else
+            ' Doesn't exist, use default
+            Return DefaultValue
+        End If
+
+        Return Nothing
+
+    End Function
 
 #Region "Database Table Updates"
 
