@@ -27,6 +27,9 @@ Public Class frmUpdaterMain
         TypeLong = 5
     End Enum
 
+    ' Path for looking up proxy settings
+    Dim AppSettingsFilePath As String
+
 #Region "Delegate Functions"
 
     Private Property HaveReprocessingFields As Boolean
@@ -135,6 +138,9 @@ Public Class frmUpdaterMain
 
             ' Create the new folder
             Directory.CreateDirectory(Path.Combine(AppDataRoamingFolder, TempUpdatePath))
+
+            ' Set the path to the settings file
+            AppSettingsFilePath = Path.ChangeExtension(Path.Combine(AppDataRoamingFolder, "Settings", "ApplicationSettings"), ".xml")
 
             BGWorker.WorkerReportsProgress = True
             BGWorker.WorkerSupportsCancellation = True
@@ -950,9 +956,13 @@ RevertToOldFileVersions:
 
     Public Function GetProxyData() As WebProxy
         Dim ReturnProxy As WebProxy
+        Dim ProxyAddress As String = ""
+        Dim ProxyPort As Integer = 0
 
-        Dim ProxyAddress As String = GetSettingValue(SettingTypes.TypeString, "ApplicationSettings", "ProxyAddress", "")
-        Dim ProxyPort As Integer = GetSettingValue(SettingTypes.TypeInteger, "ApplicationSettings", "ProxyPort", 0)
+        If File.Exists(AppSettingsFilePath) Then
+            ProxyAddress = GetSettingValue(SettingTypes.TypeString, "ApplicationSettings", "ProxyAddress", "")
+            ProxyPort = GetSettingValue(SettingTypes.TypeInteger, "ApplicationSettings", "ProxyPort", 0)
+        End If
 
         If ProxyAddress <> "" Then
             If ProxyPort <> 0 Then
@@ -975,7 +985,7 @@ RevertToOldFileVersions:
     Private Function GetSettingValue(ObjectType As SettingTypes, RootElement As String, ElementString As String, DefaultValue As Object) As Object
         Dim m_xmld As New XmlDocument
         Dim m_nodelist As XmlNodeList
-        Dim FilePath As String = Path.ChangeExtension(Path.Combine(AppDataRoamingFolder, "Settings", "ApplicationSettings"), ".xml")
+        Dim FilePath As String = AppSettingsFilePath
         Dim TempValue As String
 
         'Load the Xml file
