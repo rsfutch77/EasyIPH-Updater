@@ -436,8 +436,8 @@ Public Class frmUpdaterMain
                 EVEImagesNewLocalFolderName = EVE_IMAGES_ZIP.Substring(0, Len(EVE_IMAGES_ZIP) - 4) ' Save as base name
                 ' Delete if exists
                 File.Delete(Path.Combine(AppDataRoamingFolder, TempUpdatePath, EVEImagesNewLocalFolderName))
-                ' Compress the whole file for download
-                Call ZipFile.ExtractToDirectory(Path.Combine(AppDataRoamingFolder, TempUpdatePath, EVE_IMAGES_ZIP), Path.Combine(AppDataRoamingFolder, TempUpdatePath, EVEImagesNewLocalFolderName))
+                ' Extract the images
+                'Call ZipFile.ExtractToDirectory(Path.Combine(AppDataRoamingFolder, TempUpdatePath, EVE_IMAGES_ZIP), Path.Combine(AppDataRoamingFolder, TempUpdatePath, EVEImagesNewLocalFolderName))
 
                 ProgramErrorLocation = ""
                 SQL = ""
@@ -488,9 +488,10 @@ Public Class frmUpdaterMain
                     Application.DoEvents()
                 End If
 
-                ' Move the new image folder from temp updates folder to root directory folder
+                ' Extract all the files into the new image folder from temp updates folder to root directory folder
                 ProgramErrorLocation = "Error Moving New Images"
-                Directory.Move(Path.Combine(AppDataRoamingFolder, TempUpdatePath, EVEImagesNewLocalFolderName), Path.Combine(NewRootFolder, EVEImagesNewLocalFolderName))
+                Call ZipFile.ExtractToDirectory(Path.Combine(AppDataRoamingFolder, TempUpdatePath, EVE_IMAGES_ZIP), Path.Combine(NewRootFolder, EVEImagesNewLocalFolderName))
+                'Directory.Move(Path.Combine(AppDataRoamingFolder, TempUpdatePath, EVEImagesNewLocalFolderName), Path.Combine(NewRootFolder, EVEImagesNewLocalFolderName))
                 Application.DoEvents()
 
             ElseIf UpdateFileList(i).Name = EVE_DB Then
