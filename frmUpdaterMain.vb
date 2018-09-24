@@ -316,7 +316,7 @@ Public Class frmUpdaterMain
 
                 If CheckFile = "" Then
                     ' Some error in downloading
-                    ProgramErrorLocation = "Download Failed."
+                    ProgramErrorLocation = "Download Failed. File Not found on Server."
                     Exit Sub
                 Else
                     ' Check the file MD5 to make sure we got a good download. If not, try one more time
@@ -936,8 +936,6 @@ RevertToOldFileVersions:
     Public Sub WriteMsgToLog(ByVal ErrorMsg As String)
         Dim FilePath As String = Path.Combine(AppDataRoamingFolder, "EVEIPH.log")
         Dim AllText() As String
-
-        MsgBox("Updater error: " & ErrorMsg)
 
         ' Only write to log if there is an error to write
         If Trim(ErrorMsg) <> "" Then
