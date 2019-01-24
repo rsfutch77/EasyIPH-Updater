@@ -80,8 +80,8 @@ Public Class frmUpdaterMain
     Public Const TempUpdatePath As String = "EVE IPH Updates" ' Where Updates will be downloaded to and moved to the main directories
     Public Const DynamicAppDataPath As String = "EVE IPH"
 
-    Dim DBOLD As New SQLiteConnection
-    Dim DBNEW As New SQLiteConnection
+    Public DBOLD As New SQLiteConnection
+    Public DBNEW As New SQLiteConnection
 
     Public Const EVE_DB As String = "EVEIPH DB.sqlite"
     Public Const EVE_IMAGES_ZIP As String = "EVEIPH Images.zip"
@@ -403,6 +403,10 @@ Public Class frmUpdaterMain
 
                     Call UpdateMarketOrdersTable()
                     Call UpdateMarketOrdersUpdateCacheTable()
+                    Call UpdateStructureMarketOrdersTable()
+                    Call UpdateStructureMarketOrdersUpdateCacheTable()
+
+                    Call UpdateStationsTable()
 
                     Call UpdateIndustryJobsTable()
 
@@ -419,8 +423,11 @@ Public Class frmUpdaterMain
                     Call UpdateSavedFacilitiesTable()
                     Call UpdateUpwellStructuresInstalledModulesTable()
 
+
                     DBOLD.Close()
                     DBNEW.Close()
+                    DBNEW.Dispose()
+                    DBOLD.Dispose()
                     DBNEW = Nothing
                     DBOLD = Nothing
 
@@ -448,6 +455,8 @@ Public Class frmUpdaterMain
 
         ProgramErrorLocation = ""
         SQL = ""
+        GC.Collect()
+
         Application.DoEvents()
 
         ' If we screw up after this, we have to revert to anything we changed if possible
@@ -1100,44 +1109,26 @@ RevertToOldFileVersions:
 
     Private Sub UpdateESICorporationDataTable()
         Dim DBCommand As SQLiteCommand
-        Dim DBCommand2 As SQLiteCommand
         Dim readerCheck As SQLiteDataReader
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String = ""
-        Dim SQL2 As String = ""
-        Dim HaveNewFields As Boolean
+        Dim HaveNewFields As Boolean = True
 
         ProgramErrorLocation = "Cannot copy ESI_CORPORATION_DATA"
 
         ' See if they have the table
         On Error Resume Next
-        SQL = "SELECT 'X' FROM ESI_CORPORATION_DATA"
+        SQL = "SELECT CORP_ROLES_CACHE_DATE FROM ESI_CORPORATION_DATA"
         DBCommand = New SQLiteCommand(SQL, DBOLD)
         readerUpdate = DBCommand.ExecuteReader
         On Error GoTo 0
 
-        If Not IsNothing(readerUpdate) Then
-            ' They have it
-            SQL = "SELECT * FROM ESI_CORPORATION_DATA"
-        Else
-            ' They don't have the table, so exit because this is a required table and will come with nothing in it to start
-            Exit Sub
-        End If
-
-        ' See if they have new fields for table
-        On Error Resume Next
-        SQL2 = "SELECT CORP_ROLES_CACHE_DATE FROM ESI_CORPORATION_DATA"
-        DBCommand2 = New SQLiteCommand(SQL2, DBOLD)
-        readerCheck = DBCommand2.ExecuteReader
-
-        If Not IsNothing(readerCheck) Then
-            HaveNewFields = True
-        Else
+        If IsNothing(readerUpdate) Then
+            ' They don't have the new fields
             HaveNewFields = False
         End If
 
-        On Error GoTo 0
-
+        SQL = "SELECT * FROM ESI_CORPORATION_DATA"
         DBCommand = New SQLiteCommand(SQL, DBOLD)
         readerUpdate = DBCommand.ExecuteReader
 
@@ -1253,25 +1244,23 @@ RevertToOldFileVersions:
         Dim readerCheck As SQLiteDataReader
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
-        Dim HaveNewAPIFields As Boolean
+        Dim HaveNewFields As Boolean = True
 
         ProgramErrorLocation = "Cannot copy ESI_PUBLIC_CACHE_DATES"
 
-        ' See if they have the table
+        ' See if they have the new fields
         On Error Resume Next
-        SQL = "SELECT 'X' FROM ESI_PUBLIC_CACHE_DATES"
+        SQL = "SELECT PUBLIC_ESI_STATUS_CACHED_UNTIL FROM ESI_PUBLIC_CACHE_DATES"
         DBCommand = New SQLiteCommand(SQL, DBOLD)
         readerUpdate = DBCommand.ExecuteReader
         On Error GoTo 0
 
-        If Not IsNothing(readerUpdate) Then
-            ' They have it
-            SQL = "SELECT * FROM ESI_PUBLIC_CACHE_DATES"
-        Else
-            ' They don't have the table, so exit because this is a required table and will come with nothing in it to start
-            Exit Sub
+        If IsNothing(readerUpdate) Then
+            ' They don't have the new field
+            HaveNewFields = False
         End If
 
+        SQL = "SELECT * FROM ESI_PUBLIC_CACHE_DATES"
         DBCommand = New SQLiteCommand(SQL, DBOLD)
         readerUpdate = DBCommand.ExecuteReader
 
@@ -1281,7 +1270,12 @@ RevertToOldFileVersions:
             SQL = "INSERT INTO ESI_PUBLIC_CACHE_DATES VALUES ("
             SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
             SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
-            SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ")"
+            SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+            If HaveNewFields Then
+                SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ")"
+            Else
+                SQL &= "NULL)"
+            End If
 
             Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1489,6 +1483,19 @@ RevertToOldFileVersions:
         Dim DBCommand As SQLiteCommand
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
+        Dim HaveNewFields = True
+
+        ' See if they have the table
+        On Error Resume Next
+        SQL = "SELECT ACTIVE_SKILL_LEVEL FROM ESI_PUBLIC_CACHE_DATES"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        If IsNothing(readerUpdate) Then
+            ' They don't have the new field
+            HaveNewFields = False
+        End If
 
         ' CHARACTER_SKILLS
         ProgramErrorLocation = "Cannot copy Character Skills"
@@ -1504,9 +1511,17 @@ RevertToOldFileVersions:
             SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
             SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
             SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
-            SQL &= BuildInsertFieldString(readerUpdate.Item(4)) & ","
-            SQL &= BuildInsertFieldString(readerUpdate.Item(5)) & ","
-            SQL &= BuildInsertFieldString(readerUpdate.Item(6))
+            SQL &= BuildInsertFieldString(readerUpdate.Item(4)) & "," ' Now trained level
+            If HaveNewFields Then
+                SQL &= BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(6)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(7))
+            Else
+                SQL &= "0," ' New active field, so just set to zero to start and let it refresh
+                SQL &= BuildInsertFieldString(readerUpdate.Item(5)) & ","
+                SQL &= BuildInsertFieldString(readerUpdate.Item(6))
+            End If
+
             SQL &= ")"
 
             Call ExecuteNonQuerySQL(SQL, DBNEW)
@@ -1762,6 +1777,157 @@ RevertToOldFileVersions:
             readerUpdate.Close()
         End If
 
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateStructureMarketOrdersTable()
+        Dim DBCommand As SQLiteCommand
+        Dim readerCheck As SQLiteDataReader
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+        Dim HaveNewAPIFields As Boolean
+
+        ProgramErrorLocation = "Cannot copy STRUCTURE_MARKET_ORDERS"
+
+        ' See if they have the table
+        On Error Resume Next
+        SQL = "SELECT 'X' FROM STRUCTURE_MARKET_ORDERS"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        If Not IsNothing(readerUpdate) Then
+            ' They have it
+            SQL = "SELECT * FROM STRUCTURE_MARKET_ORDERS"
+        Else
+            ' They don't have the table, so exit because this is a required table and will come with nothing in it to start
+            Exit Sub
+        End If
+
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+
+        Call BeginSQLiteTransaction(DBNEW)
+        While readerUpdate.Read
+
+            SQL = "INSERT INTO STRUCTURE_MARKET_ORDERS VALUES ("
+            SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(4)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(5)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(6)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(7)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(8)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(9)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(10)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(11)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(12)) & ")"
+
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+        End While
+
+        Call CommitSQLiteTransaction(DBNEW)
+
+        readerUpdate.Close()
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateStructureMarketOrdersUpdateCacheTable()
+        Dim DBCommand As SQLiteCommand
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+
+        ' See if they have the table
+        On Error Resume Next
+        SQL = "SELECT 'X' FROM STRUCTURE_MARKET_ORDERS"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        If Not IsNothing(readerUpdate) Then
+            ' They have it
+            SQL = "SELECT * FROM STRUCTURE_MARKET_ORDERS"
+        Else
+            ' They don't have the table, so exit because this is a required table and will come with nothing in it to start
+            Exit Sub
+        End If
+
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+
+        Call BeginSQLiteTransaction(DBNEW)
+
+        While readerUpdate.Read
+            SQL = "INSERT INTO STRUCTURE_MARKET_ORDERS_UPDATE_CACHE VALUES ("
+            SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(1))
+            SQL &= ")"
+
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+        End While
+
+        Call CommitSQLiteTransaction(DBNEW)
+
+        readerUpdate.Close()
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
+    Private Sub UpdateStationsTable()
+        Dim DBCommand As SQLiteCommand
+        Dim readerCheck As SQLiteDataReader
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+        Dim HaveNewAPIFields As Boolean
+
+        ProgramErrorLocation = "Cannot copy STATIONS"
+
+        ' See if they have the new field with data
+        On Error Resume Next
+        SQL = "SELECT * FROM STATIONS WHERE MANUALLY_UPDATED <> 0"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        If IsNothing(readerUpdate) Then
+            ' They don't have the field, so exit because they will add data to it for next update
+            Exit Sub
+        End If
+
+        Call BeginSQLiteTransaction(DBNEW)
+
+        While readerUpdate.Read
+            ' Insert all the manually entered stations/structures
+            SQL = "INSERT INTO STATIONS VALUES ("
+            SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(1)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(2)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(3)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(4)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(5)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(6)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(7)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(8)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(9)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(10)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(11)) & ")"
+
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+        End While
+
+        Call CommitSQLiteTransaction(DBNEW)
+
+        readerUpdate.Close()
         readerUpdate = Nothing
         DBCommand = Nothing
 
