@@ -456,6 +456,8 @@ Public Class frmUpdaterMain
         ProgramErrorLocation = ""
         SQL = ""
         GC.Collect()
+        ' wait a second for GC
+        Thread.Sleep(1000)
 
         Application.DoEvents()
 
