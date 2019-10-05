@@ -1846,6 +1846,8 @@ RevertToOldFileVersions:
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
 
+        ProgramErrorLocation = "Cannot copy STRUCTURE_MARKET_ORDERS_UPDATE_CACHE"
+
         ' See if they have the table
         On Error Resume Next
         SQL = "SELECT 'X' FROM STRUCTURE_MARKET_ORDERS"
@@ -1855,7 +1857,7 @@ RevertToOldFileVersions:
 
         If Not IsNothing(readerUpdate) Then
             ' They have it
-            SQL = "SELECT * FROM STRUCTURE_MARKET_ORDERS"
+            SQL = "SELECT * FROM STRUCTURE_MARKET_ORDERS_UPDATE_CACHE"
         Else
             ' They don't have the table, so exit because this is a required table and will come with nothing in it to start
             Exit Sub
@@ -1895,7 +1897,7 @@ RevertToOldFileVersions:
 
         ' See if they have the new field with data
         On Error Resume Next
-        SQL = "SELECT * FROM STATIONS WHERE MANUALLY_UPDATED <> 0"
+        SQL = "SELECT * FROM STATIONS WHERE MANUAL_ENTRY <> 0"
         DBCommand = New SQLiteCommand(SQL, DBOLD)
         readerUpdate = DBCommand.ExecuteReader
         On Error GoTo 0
@@ -1920,8 +1922,7 @@ RevertToOldFileVersions:
             SQL &= BuildInsertFieldString(readerUpdate.Item(7)) & ","
             SQL &= BuildInsertFieldString(readerUpdate.Item(8)) & ","
             SQL &= BuildInsertFieldString(readerUpdate.Item(9)) & ","
-            SQL &= BuildInsertFieldString(readerUpdate.Item(10)) & ","
-            SQL &= BuildInsertFieldString(readerUpdate.Item(11)) & ")"
+            SQL &= BuildInsertFieldString(readerUpdate.Item(10)) & ")"
 
             Call ExecuteNonQuerySQL(SQL, DBNEW)
 
