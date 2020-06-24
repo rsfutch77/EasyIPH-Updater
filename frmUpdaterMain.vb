@@ -386,6 +386,8 @@ Public Class frmUpdaterMain
                     Call ExecuteNonQuerySQL("PRAGMA synchronous = NORMAL", DBOLD)
                     Call ExecuteNonQuerySQL("PRAGMA synchronous = NORMAL; PRAGMA auto_vacuum = FULL;", DBNEW)
 
+                    Call UpdateAllBlueprintsTable()
+
                     Call UpdateESICharacterDataTable()
                     Call UpdateESICorporationDataTable()
                     Call UpdateESIPublicCacheDatesTable()
@@ -1401,6 +1403,52 @@ RevertToOldFileVersions:
 
     End Sub
 
+    Private Sub UpdateAllBlueprintsTable()
+        Dim DBCommand As SQLiteCommand
+        Dim readerCheck As SQLiteDataReader
+        Dim readerUpdate As SQLiteDataReader
+        Dim SQL As String
+        Dim HaveNewAPIFields As Boolean
+
+        ProgramErrorLocation = "Cannot copy ALL_BLUEPRINTS Data"
+
+        ' See if they have the table
+        On Error Resume Next
+        SQL = "SELECT 'X' FROM ALL_BLUEPRINTS_FACT"
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        If Not IsNothing(readerUpdate) Then
+            ' They have it
+            SQL = "SELECT BLUEPRINT_ID IGNORE, FAVORITE FROM ALL_BLUEPRINTS_FACT"
+        Else
+            ' They don't have the table, so exit because this is a required table and will come with nothing in it to start
+            Exit Sub
+        End If
+
+        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        readerUpdate = DBCommand.ExecuteReader
+
+        Call BeginSQLiteTransaction(DBNEW)
+        While readerUpdate.Read
+
+            SQL = "UPDATE ALL_BLUEPRINTS_FACT SET IGNORE =" & BuildInsertFieldString(readerUpdate.Item(1)) & ", "
+            SQL &= "FAVORITE = " & BuildInsertFieldString(readerUpdate.Item(2)) & " "
+            SQL &= "WHERE BLUEPRINT_ID = " & BuildInsertFieldString(readerUpdate.Item(0))
+
+            Call ExecuteNonQuerySQL(SQL, DBNEW)
+
+        End While
+
+        Call CommitSQLiteTransaction(DBNEW)
+
+        readerUpdate.Close()
+        readerUpdate = Nothing
+        DBCommand = Nothing
+
+    End Sub
+
     Private Sub UpdateAssetsTable()
         Dim DBCommand As SQLiteCommand
         Dim readerUpdate As SQLiteDataReader
@@ -2037,7 +2085,7 @@ RevertToOldFileVersions:
                     SQL &= BuildInsertFieldString(readerUpdate.Item(11)) & ","
                     SQL &= BuildInsertFieldString(readerUpdate.Item(12)) & ","
                     SQL &= BuildInsertFieldString(readerUpdate.Item(13)) & ","
-                    SQL &= BuildInsertFieldString(readerUpdate.Item(14)) & ","
+                    SQL &= BuildInsertFieldString(CStr(readerUpdate.Item(14))) & "," ' Hack to force this to convert to a string from int
                     SQL &= BuildInsertFieldString(readerUpdate.Item(15)) & ","
                     SQL &= BuildInsertFieldString(readerUpdate.Item(16)) & ","
                     SQL &= BuildInsertFieldString(readerUpdate.Item(17)) & ","
@@ -2068,37 +2116,34 @@ RevertToOldFileVersions:
         Dim readerCheck As SQLiteDataReader
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
-        Dim HaveNewItemPricesFields As Boolean
 
         ' ITEM_PRICES - includes CREST Market Prices updates
         ProgramErrorLocation = "Cannot copy Item Prices"
-        ' See if they have the new or old format for item prices
+
+        ' See if they have the table
         On Error Resume Next
-        SQL = "SELECT AVERAGE_PRICE FROM ITEM_PRICES"
+        SQL = "SELECT 'X' FROM ITEM_PRICES_FACT"
         DBCommand = New SQLiteCommand(SQL, DBOLD)
-        readerCheck = DBCommand.ExecuteReader
-        ' If it didn't error
-        If Err.Number = 0 Then
-            HaveNewItemPricesFields = True
-            readerCheck.Close()
+        readerUpdate = DBCommand.ExecuteReader
+        On Error GoTo 0
+
+        If Not IsNothing(readerUpdate) Then
+            ' They have it
+            SQL = "SELECT ITEM_ID, PRICE, ADJUSTED_PRICE, AVERAGE_PRICE FROM ITEM_PRICES_FACT"
         Else
-            HaveNewItemPricesFields = False
+            ' Select from old table since the prices are updated
+            SQL = "SELECT ITEM_ID, PRICE, ADJUSTED_PRICE, AVERAGE_PRICE FROM ITEM_PRICES"
         End If
+
         On Error GoTo 0
 
         Call BeginSQLiteTransaction(DBNEW)
-
-        If HaveNewItemPricesFields Then
-            SQL = "SELECT ITEM_ID, PRICE, ADJUSTED_PRICE, AVERAGE_PRICE FROM ITEM_PRICES"
-        Else
-            SQL = "SELECT [Item ID], [Price], 0 AS ADJUSTED_PRICE, 0 AS AVERAGE_PRICE FROM ITEM_PRICES"
-        End If
 
         DBCommand = New SQLiteCommand(SQL, DBOLD)
         readerUpdate = DBCommand.ExecuteReader
 
         While readerUpdate.Read
-            SQL = "UPDATE ITEM_PRICES "
+            SQL = "UPDATE ITEM_PRICES_FACT "
             SQL &= "SET PRICE = " & BuildInsertFieldString(readerUpdate.GetDouble(1)) & ", "
             SQL &= "ADJUSTED_PRICE = " & BuildInsertFieldString(readerUpdate.GetDouble(2)) & ", "
             SQL &= "AVERAGE_PRICE = " & BuildInsertFieldString(readerUpdate.GetDouble(3)) & " "
