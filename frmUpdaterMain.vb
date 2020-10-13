@@ -1421,7 +1421,7 @@ RevertToOldFileVersions:
 
         If Not IsNothing(readerUpdate) Then
             ' They have it
-            SQL = "SELECT BLUEPRINT_ID IGNORE, FAVORITE FROM ALL_BLUEPRINTS_FACT"
+            SQL = "SELECT BLUEPRINT_ID, IGNORE, FAVORITE FROM ALL_BLUEPRINTS_FACT"
         Else
             ' They don't have the table, so exit because this is a required table and will come with nothing in it to start
             Exit Sub
