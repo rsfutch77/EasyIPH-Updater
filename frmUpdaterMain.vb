@@ -100,6 +100,8 @@ Public Class frmUpdaterMain
         InitializeComponent()
 
         Try
+            'System.Net. update to allow for TLS 1.2 to connect to github
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12
 
             ' This is the current folder we are working in, to download and move updates
             AppDataRoamingFolder = Path.GetDirectoryName(Application.ExecutablePath)
@@ -802,7 +804,7 @@ RevertToOldFileVersions:
         'Replacement for Stream.Position (webResponse stream doesn't support seek)
         Dim nRead As Long
 
-        worker.ReportProgress(0)
+        Worker.ReportProgress(0)
 
         Try 'Checks if the file exist
             Request = DirectCast(HttpWebRequest.Create(DownloadURL), HttpWebRequest)
@@ -823,7 +825,7 @@ RevertToOldFileVersions:
         Do
             Application.DoEvents()
 
-            If worker.CancellationPending Then 'If user abort download
+            If Worker.CancellationPending Then 'If user abort download
                 Exit Do
             End If
 
@@ -834,7 +836,7 @@ RevertToOldFileVersions:
 
             nRead = nRead + bytesread
             ' Update progress 
-            worker.ReportProgress((nRead * 100) / FileSize)
+            Worker.ReportProgress((nRead * 100) / FileSize)
 
             writeStream.Write(readBytes, 0, bytesread)
         Loop
@@ -1310,7 +1312,9 @@ RevertToOldFileVersions:
         On Error GoTo 0
 
         If Not IsNothing(readerUpdate) Then
-            ' They have it
+            ' They have the table
+            readerUpdate.Close()
+            readerUpdate = Nothing
 
             ' See if they have the new fields
             On Error Resume Next
@@ -1322,16 +1326,15 @@ RevertToOldFileVersions:
             If IsNothing(readerUpdate) Then
                 ' They don't have the new field
                 HaveNewFields = False
+            Else
+                readerUpdate.Close()
             End If
-
-            SQL = "SELECT * FROM SAVED_FACILITIES "
         Else
             ' They don't have the table, so exit because this is a required table and will come with defaults in it to start
             Exit Sub
         End If
-        readerUpdate.Close()
 
-        DBCommand = New SQLiteCommand(SQL, DBOLD)
+        DBCommand = New SQLiteCommand("SELECT * FROM SAVED_FACILITIES", DBOLD)
         readerUpdate = DBCommand.ExecuteReader
 
         Call BeginSQLiteTransaction(DBNEW)
