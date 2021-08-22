@@ -419,7 +419,7 @@ Public Class frmUpdaterMain
                     Call UpdateOwnedBlueprintsTable()
                     Call UpdateFWSystemUpgradesTable()
 
-                    Call UpdateIndustryFacilitiesTable()
+                    ' Call UpdateIndustryFacilitiesTable()
                     Call UpdateIndustrySystemCostIndiciesTable()
 
                     Call UpdateSavedFacilitiesTable()
@@ -1324,8 +1324,7 @@ RevertToOldFileVersions:
                 HaveNewFields = False
             End If
 
-            SQL = "SELECT CHARACTER_ID,PRODUCTION_TYPE,FACILITY_VIEW,FACILITY_ID,FACILITY_TYPE,FACILITY_TYPE_ID,REGION_ID,SOLAR_SYSTEM_ID,ACTIVITY_COST_PER_SECOND,INCLUDE_ACTIVITY_COST,INCLUDE_ACTIVITY_TIME,INCLUDE_ACTIVITY_USAGE,FACILITY_TAX,MATERIAL_MULTIPLIER,TIME_MULTIPLIER,COST_MULTIPLIER FROM SAVED_FACILITIES "
-            SQL &= "GROUP BY CHARACTER_ID,PRODUCTION_TYPE,FACILITY_VIEW,FACILITY_ID,FACILITY_TYPE,FACILITY_TYPE_ID,REGION_ID,SOLAR_SYSTEM_ID,ACTIVITY_COST_PER_SECOND,INCLUDE_ACTIVITY_COST,INCLUDE_ACTIVITY_TIME,INCLUDE_ACTIVITY_USAGE,FACILITY_TAX,MATERIAL_MULTIPLIER,TIME_MULTIPLIER,COST_MULTIPLIER"
+            SQL = "SELECT * FROM SAVED_FACILITIES "
         Else
             ' They don't have the table, so exit because this is a required table and will come with defaults in it to start
             Exit Sub
