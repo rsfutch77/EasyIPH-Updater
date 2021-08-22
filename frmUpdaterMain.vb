@@ -1298,7 +1298,7 @@ RevertToOldFileVersions:
         Dim readerCheck As SQLiteDataReader
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
-        Dim HaveNewAPIFields As Boolean
+        Dim HaveNewFields As Boolean = True
 
         ProgramErrorLocation = "Cannot copy SAVED_FACILITIES"
 
@@ -1311,11 +1311,26 @@ RevertToOldFileVersions:
 
         If Not IsNothing(readerUpdate) Then
             ' They have it
-            SQL = "SELECT * FROM SAVED_FACILITIES"
+
+            ' See if they have the new fields
+            On Error Resume Next
+            SQL = "SELECT CONVERT_TO_ORE FROM SAVED_FACILITIES"
+            DBCommand = New SQLiteCommand(SQL, DBOLD)
+            readerUpdate = DBCommand.ExecuteReader
+            On Error GoTo 0
+
+            If IsNothing(readerUpdate) Then
+                ' They don't have the new field
+                HaveNewFields = False
+            End If
+
+            SQL = "SELECT CHARACTER_ID,PRODUCTION_TYPE,FACILITY_VIEW,FACILITY_ID,FACILITY_TYPE,FACILITY_TYPE_ID,REGION_ID,SOLAR_SYSTEM_ID,ACTIVITY_COST_PER_SECOND,INCLUDE_ACTIVITY_COST,INCLUDE_ACTIVITY_TIME,INCLUDE_ACTIVITY_USAGE,FACILITY_TAX,MATERIAL_MULTIPLIER,TIME_MULTIPLIER,COST_MULTIPLIER FROM SAVED_FACILITIES "
+            SQL &= "GROUP BY CHARACTER_ID,PRODUCTION_TYPE,FACILITY_VIEW,FACILITY_ID,FACILITY_TYPE,FACILITY_TYPE_ID,REGION_ID,SOLAR_SYSTEM_ID,ACTIVITY_COST_PER_SECOND,INCLUDE_ACTIVITY_COST,INCLUDE_ACTIVITY_TIME,INCLUDE_ACTIVITY_USAGE,FACILITY_TAX,MATERIAL_MULTIPLIER,TIME_MULTIPLIER,COST_MULTIPLIER"
         Else
-            ' They don't have the table, so exit because this is a required table and will come with nothing in it to start
+            ' They don't have the table, so exit because this is a required table and will come with defaults in it to start
             Exit Sub
         End If
+        readerUpdate.Close()
 
         DBCommand = New SQLiteCommand(SQL, DBOLD)
         readerUpdate = DBCommand.ExecuteReader
@@ -1339,7 +1354,12 @@ RevertToOldFileVersions:
             SQL &= BuildInsertFieldString(readerUpdate.Item(12)) & ","
             SQL &= BuildInsertFieldString(readerUpdate.Item(13)) & ","
             SQL &= BuildInsertFieldString(readerUpdate.Item(14)) & ","
-            SQL &= BuildInsertFieldString(readerUpdate.Item(15)) & ")"
+            SQL &= BuildInsertFieldString(readerUpdate.Item(15)) & ","
+            If HaveNewFields Then
+                SQL &= BuildInsertFieldString(readerUpdate.Item(16)) & ")"
+            Else
+                SQL &= "0)"
+            End If
 
             Call ExecuteNonQuerySQL(SQL, DBNEW)
 
