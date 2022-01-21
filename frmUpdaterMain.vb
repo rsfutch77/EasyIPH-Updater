@@ -56,19 +56,18 @@ Public Class frmUpdaterMain
 
     ' Worker
     Public Worker As BackgroundWorker
-    Public TestingVersion As Boolean ' For testing downloads from the server for a new update
     Public LocalXMLFileName As String
 
     Public UpdateFileList As New List(Of FileEntry) ' List of files that need updating, will download and rename all at the same time
     Public EVEImagesLocalFolderName As String = "" ' This is the name of the folder we are going to replace. This is stored in the text file on local comp
 
     Public Const XMLLatestVersionFileName As String = "LatestVersionIPH.xml"
-    Public Const XMLLatestVersionTest As String = "LatestVersionIPH Test.xml"
+    Public Const XMLLatestVersionTest As String = "LatestVersionIPH_Test.xml"
     Public Const UpdaterFileName As String = "EVEIPH Updater.exe"
 
     ' File Path
     Public Const XMLUpdateFileURL = "https://raw.githubusercontent.com/EVEIPH/LatestFiles/master/LatestVersionIPH.xml"
-    Public Const XMLUpdateTestFileURL = "https://github.com/EVEIPH/LatestFiles/raw/master/LatestVersionIPH_Test.xml"
+    Public Const XMLUpdateTestFileURL = "https://raw.githubusercontent.com/rsfutch77/LatestFiles/test/LatestVersionIPH_Test.xml"
 
     ' For tracking an error
     Public ProgramErrorLocation As String
@@ -91,6 +90,9 @@ Public Class frmUpdaterMain
     Public Const NO_LOCAL_XML_FILE As String = "NO LOCAL XML FILE"
     Public Const OLD_PREFIX As String = "OLD_"
 
+    Public Developer As Boolean ' This is if I'm developing something and only want me to see it instead of public release
+
+
     Public LocalCulture As New CultureInfo("en-US")
 
     Public Sub New()
@@ -99,12 +101,26 @@ Public Class frmUpdaterMain
         ' This call is required by the designer.
         InitializeComponent()
 
+        ' Set developer flag
+        If File.Exists("C:\Developer.txt") Then
+            Developer = True
+        Else
+            Developer = False
+        End If
+
         Try
             'System.Net. update to allow for TLS 1.2 to connect to github
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12
 
             ' This is the current folder we are working in, to download and move updates
-            AppDataRoamingFolder = Path.GetDirectoryName(Application.ExecutablePath)
+            If Developer Then
+                Dim FolderBrowserDialog1 As New System.Windows.Forms.FolderBrowserDialog
+                FolderBrowserDialog1.Description = "Select Roaming\EasyIPH folder"
+                FolderBrowserDialog1.ShowDialog()
+                AppDataRoamingFolder = FolderBrowserDialog1.SelectedPath
+            Else
+                AppDataRoamingFolder = Path.GetDirectoryName(Application.ExecutablePath)
+            End If
 
             ' The root folder where the exe is located and other files we want to update - this is the installation directory
             ' Get the operating folder from arguments set when shelled
@@ -117,15 +133,8 @@ Public Class frmUpdaterMain
             ' Need to strip off any end spaces for use
             ROOT_FOLDER = Trim(ROOT_FOLDER)
 
-            ' Set test platform
-            If File.Exists("Test.txt") Then
-                TestingVersion = True
-            Else
-                TestingVersion = False
-            End If
-
             ' Set the version of the XML file we will use
-            If TestingVersion Then
+            If Developer Then
                 LocalXMLFileName = XMLLatestVersionTest
             Else
                 LocalXMLFileName = XMLLatestVersionFileName
@@ -207,7 +216,7 @@ Public Class frmUpdaterMain
 
         ' Get the newest update file from server
         Dim URL As String
-        If TestingVersion Then
+        If Developer Then
             URL = XMLUpdateTestFileURL
         Else
             URL = XMLUpdateFileURL
@@ -742,17 +751,19 @@ RevertToOldFileVersions:
                 Call ShowNotifyBox("Update Complete!")
             End If
 
-            ' Open new program
-            Dim Proc As New Process
-            Proc.StartInfo.FileName = Path.Combine(ROOT_FOLDER, EVEIPH_EXE)
-            Proc.StartInfo.WindowStyle = ProcessWindowStyle.Normal
-            Proc.Start()
+            ' Open new program if not in developer mode
+            If Not Developer Then
+                Dim Proc As New Process
+                Proc.StartInfo.FileName = Path.Combine(ROOT_FOLDER, EVEIPH_EXE)
+                Proc.StartInfo.WindowStyle = ProcessWindowStyle.Normal
+                Proc.Start()
+            End If
 
         Catch ex As Exception
             MsgBox("Run Worker Completed error: " & ex.ToString)
         End Try
 
-        ' Done, hide form and close
+        'Hide and close the updater
         Me.Hide()
         End
 
@@ -1099,7 +1110,9 @@ RevertToOldFileVersions:
             SQL &= BuildInsertFieldString(readerUpdate.Item(19)) & ","
             SQL &= BuildInsertFieldString(readerUpdate.Item(20)) & ","
             SQL &= BuildInsertFieldString(readerUpdate.Item(21)) & ","
-            SQL &= BuildInsertFieldString(readerUpdate.Item(22)) & ")"
+            SQL &= BuildInsertFieldString(readerUpdate.Item(22)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(23)) & ","
+            SQL &= BuildInsertFieldString(readerUpdate.Item(24)) & ")"
 
             Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1300,7 +1313,6 @@ RevertToOldFileVersions:
         Dim readerCheck As SQLiteDataReader
         Dim readerUpdate As SQLiteDataReader
         Dim SQL As String
-        Dim HaveNewFields As Boolean = True
 
         ProgramErrorLocation = "Cannot copy SAVED_FACILITIES"
 
@@ -1323,12 +1335,6 @@ RevertToOldFileVersions:
             readerUpdate = DBCommand.ExecuteReader
             On Error GoTo 0
 
-            If IsNothing(readerUpdate) Then
-                ' They don't have the new field
-                HaveNewFields = False
-            Else
-                readerUpdate.Close()
-            End If
         Else
             ' They don't have the table, so exit because this is a required table and will come with defaults in it to start
             Exit Sub
@@ -1356,12 +1362,7 @@ RevertToOldFileVersions:
             SQL &= BuildInsertFieldString(readerUpdate.Item(12)) & ","
             SQL &= BuildInsertFieldString(readerUpdate.Item(13)) & ","
             SQL &= BuildInsertFieldString(readerUpdate.Item(14)) & ","
-            SQL &= BuildInsertFieldString(readerUpdate.Item(15)) & ","
-            If HaveNewFields Then
-                SQL &= BuildInsertFieldString(readerUpdate.Item(16)) & ")"
-            Else
-                SQL &= "0)"
-            End If
+            SQL &= BuildInsertFieldString(readerUpdate.Item(15)) & ")"
 
             Call ExecuteNonQuerySQL(SQL, DBNEW)
 
@@ -1939,7 +1940,7 @@ RevertToOldFileVersions:
         Call BeginSQLiteTransaction(DBNEW)
 
         While readerUpdate.Read
-            SQL = "INSERT INTO STRUCTURE_MARKET_ORDERS_UPDATE_CACHE VALUES ("
+            SQL = "INSERT OR REPLACE INTO STRUCTURE_MARKET_ORDERS_UPDATE_CACHE VALUES ("
             SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
             SQL &= BuildInsertFieldString(readerUpdate.Item(1))
             SQL &= ")"
@@ -2311,7 +2312,7 @@ RevertToOldFileVersions:
             readerUpdate = DBCommand.ExecuteReader
 
             While readerUpdate.Read
-                SQL = "INSERT INTO FW_SYSTEM_UPGRADES VALUES ("
+                SQL = "INSERT OR REPLACE INTO FW_SYSTEM_UPGRADES VALUES ("
                 SQL &= BuildInsertFieldString(readerUpdate.Item(0)) & ","
                 SQL &= BuildInsertFieldString(readerUpdate.Item(1))
                 SQL &= ")"
