@@ -387,6 +387,8 @@ Public Class frmUpdaterMain
 
                 ' Open databases, if no database file, so just exit and use downloaded one
                 If File.Exists(Path.Combine(AppDataRoamingFolder, UpdateFileListRecord.Name)) Then
+                    Me.Invoke(UpdateStatusDelegate, False, "Updating Database...")
+
                     DBOLD.ConnectionString = DATASOURCESTRING & Path.Combine(AppDataRoamingFolder, UpdateFileListRecord.Name)
                     DBOLD.Open()
 
@@ -436,6 +438,10 @@ Public Class frmUpdaterMain
                     Call UpdateSavedFacilitiesTable()
                     Call UpdateUpwellStructuresInstalledModulesTable()
 
+                    Me.Invoke(UpdateStatusDelegate, False, "Performing Database integrity check...")
+                    ProgramErrorLocation = "Error with DB integrity Check"
+                    Call ExecuteNonQuerySQL("PRAGMA integrity_check", DBNEW)
+                    Application.DoEvents()
 
                     DBOLD.Close()
                     DBNEW.Close()
@@ -444,7 +450,6 @@ Public Class frmUpdaterMain
                     DBNEW = Nothing
                     DBOLD = Nothing
 
-                    Me.Invoke(UpdateStatusDelegate, False, "Database Updated...")
                     ProgramErrorLocation = ""
                     SQL = ""
                 End If
@@ -519,7 +524,7 @@ Public Class frmUpdaterMain
                 Application.DoEvents()
 
             ElseIf UpdateFileList(i).Name = EVE_DB Then
-                Me.Invoke(UpdateStatusDelegate, False, "Updating DB...")
+                Me.Invoke(UpdateStatusDelegate, False, "Cleaning up Database...")
 
                 ' If an OLD file exists, delete it
                 If File.Exists(Path.Combine(NewRootFolder, OLD_PREFIX & EVE_DB)) Then
