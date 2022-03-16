@@ -66,7 +66,7 @@ Public Class frmUpdaterMain
     Public Const UpdaterFileName As String = "EVEIPH Updater.exe"
 
     ' File Path
-    Public Const XMLUpdateFileURL = "https://raw.githubusercontent.com/EVEIPH/LatestFiles/master/LatestVersionIPH.xml"
+    Public Const XMLUpdateFileURL     = "https://raw.githubusercontent.com/rsfutch77/LatestFiles/master/LatestVersionIPH.xml"
     Public Const XMLUpdateTestFileURL = "https://raw.githubusercontent.com/rsfutch77/LatestFiles/test/LatestVersionIPH_Test.xml"
 
     ' For tracking an error
