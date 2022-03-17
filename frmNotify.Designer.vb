@@ -59,7 +59,7 @@ Partial Class frmNotify
         Me.MinimizeBox = False
         Me.Name = "frmNotify"
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
-        Me.Text = "EVE IPH Updater"
+        Me.Text = "EasyIPH-Updater"
         Me.ResumeLayout(False)
 
     End Sub

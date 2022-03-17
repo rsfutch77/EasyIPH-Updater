@@ -43,7 +43,7 @@ Partial Class frmErrorDB
         Me.Label1.Name = "Label1"
         Me.Label1.Size = New System.Drawing.Size(263, 30)
         Me.Label1.TabIndex = 2
-        Me.Label1.Text = "This verison of EVE IPH is no longer supported. Please visit the link below for t" & _
+        Me.Label1.Text = "This verison of EasyIPH is no longer supported. Please visit the link below for t" &
     "he latest version."
         Me.Label1.TextAlign = System.Drawing.ContentAlignment.TopCenter
         '

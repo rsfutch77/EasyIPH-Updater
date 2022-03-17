@@ -76,8 +76,8 @@ Public Class frmUpdaterMain
 
     Public AppDataRoamingFolder As String ' Where the dynamic files are located
     Public ROOT_FOLDER As String = "" ' Where the root folder is located, that has the IPH exe and other files we can update that are not dynamically updated in IPH
-    Public Const TempUpdatePath As String = "EVE IPH Updates" ' Where Updates will be downloaded to and moved to the main directories
-    Public Const DynamicAppDataPath As String = "EVE IPH"
+    Public Const TempUpdatePath As String = "EasyUPH Updates" ' Where Updates will be downloaded to and moved to the main directories
+    Public Const DynamicAppDataPath As String = "EasyIPH"
 
     Public DBOLD As New SQLiteConnection
     Public DBNEW As New SQLiteConnection
