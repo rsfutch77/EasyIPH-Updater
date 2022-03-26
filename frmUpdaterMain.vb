@@ -63,7 +63,7 @@ Public Class frmUpdaterMain
 
     Public Const XMLLatestVersionFileName As String = "LatestVersionIPH.xml"
     Public Const XMLLatestVersionTest As String = "LatestVersionIPH_Test.xml"
-    Public Const UpdaterFileName As String = "EVEIPH Updater.exe"
+    Public Const UpdaterFileName As String = "EasyIPH-Updater.exe"
 
     ' File Path
     Public Const XMLUpdateFileURL     = "https://raw.githubusercontent.com/rsfutch77/LatestFiles/master/LatestVersionIPH.xml"
@@ -76,15 +76,14 @@ Public Class frmUpdaterMain
 
     Public AppDataRoamingFolder As String ' Where the dynamic files are located
     Public ROOT_FOLDER As String = "" ' Where the root folder is located, that has the IPH exe and other files we can update that are not dynamically updated in IPH
-    Public Const TempUpdatePath As String = "EasyUPH Updates" ' Where Updates will be downloaded to and moved to the main directories
+    Public Const TempUpdatePath As String = "EasyIPH_Updates" ' Where Updates will be downloaded to and moved to the main directories
     Public Const DynamicAppDataPath As String = "EasyIPH"
 
     Public DBOLD As New SQLiteConnection
     Public DBNEW As New SQLiteConnection
 
-    Public Const EVE_DB As String = "EVEIPH DB.sqlite"
-    Public Const EVE_IMAGES_ZIP As String = "EVEIPH Images.zip"
-    Public Const EVEIPH_EXE As String = "EVE Isk per Hour.exe" ' For Shelling
+    Public Const EVE_DB As String = "EasyIPH_DB.sqlite"
+    Public Const EASYIPH_EXE As String = "EasyIPH.exe" ' For Shelling
 
     Public Const DATASOURCESTRING As String = "Data source="
     Public Const NO_LOCAL_XML_FILE As String = "NO LOCAL XML FILE"
@@ -228,7 +227,7 @@ Public Class frmUpdaterMain
             ' Load the server xml file to check for updates 
             m_xmld.Load(ServerXMLLastUpdatePath)
 
-            m_nodelist = m_xmld.SelectNodes("/EVEIPH/result/rowset/row")
+            m_nodelist = m_xmld.SelectNodes("/EasyIPH/result/rowset/row")
 
             ' Loop through the nodes 
             For Each m_node In m_nodelist
@@ -250,7 +249,7 @@ Public Class frmUpdaterMain
         If File.Exists(Path.Combine(AppDataRoamingFolder, LocalXMLFileName)) Then
             ' Load the local xml file to check for updates for the DB and images
             m_xmld.Load(Path.Combine(AppDataRoamingFolder, LocalXMLFileName))
-            m_nodelist = m_xmld.SelectNodes("/EVEIPH/result/rowset/row")
+            m_nodelist = m_xmld.SelectNodes("/EasyIPH/result/rowset/row")
 
             ' Loop through the nodes 
             For Each m_node In m_nodelist
@@ -284,7 +283,7 @@ Public Class frmUpdaterMain
             End If
 
             ' Get the MD5 from each filename in the list and compare to XML, if different, download the update
-            If ServerFileRecord.Name = EVE_IMAGES_ZIP Or ServerFileRecord.Name = EVE_DB Then
+            If ServerFileRecord.Name = EVE_DB Then
                 ' Zip file of images or the DB, so special processing
                 ' Zip file is in a folder after update and DB will have a different MD5 after it is updated
                 ' Need to load the local MD5 data from the Local XML since the folder doesn't have one MD5
@@ -293,9 +292,7 @@ Public Class frmUpdaterMain
                         ' Find the MD5 for the EVEDB or Image Zip file
                         If ServerFileRecord.Name = LocalFileList(j).Name Then
                             ' For the zip file, save the name of the current image folder (based on xml file)
-                            If ServerFileRecord.Name = EVE_IMAGES_ZIP Then
-                                EVEImagesLocalFolderName = LocalFileList(j).Name.Substring(0, Len(LocalFileList(j).Name) - 4)
-                            ElseIf ServerFileRecord.Name = EVE_DB Then
+                            If ServerFileRecord.Name = EVE_DB Then
                                 EVEDBLocalFileVersion = LocalFileList(j).Version
                             End If
 
@@ -305,7 +302,6 @@ Public Class frmUpdaterMain
                     Next
                 Else
                     LocalFileMD5 = ""
-                    EVEImagesLocalFolderName = EVE_IMAGES_ZIP.Substring(0, Len(EVE_IMAGES_ZIP) - 4)
                     EVEDBLocalFileVersion = EVE_DB
                 End If
             Else
@@ -440,18 +436,6 @@ Public Class frmUpdaterMain
                     SQL = ""
                 End If
 
-            ElseIf UpdateFileListRecord.Name = EVE_IMAGES_ZIP Then
-                Me.Invoke(UpdateStatusDelegate, False, "Installing Image Updates...")
-                ProgramErrorLocation = "Cannot copy images"
-
-                EVEImagesNewLocalFolderName = EVE_IMAGES_ZIP.Substring(0, Len(EVE_IMAGES_ZIP) - 4) ' Save as base name
-                ' Delete if exists
-                File.Delete(Path.Combine(AppDataRoamingFolder, TempUpdatePath, EVEImagesNewLocalFolderName))
-                ' Extract the images
-                'Call ZipFile.ExtractToDirectory(Path.Combine(AppDataRoamingFolder, TempUpdatePath, EVE_IMAGES_ZIP), Path.Combine(AppDataRoamingFolder, TempUpdatePath, EVEImagesNewLocalFolderName))
-
-                ProgramErrorLocation = ""
-                SQL = ""
             End If
 
             Counter += 1
@@ -509,7 +493,7 @@ Public Class frmUpdaterMain
 
             Else
 
-                    Me.Invoke(UpdateStatusDelegate, False, "Updating " & UpdateFileList(i).Name & "...")
+                Me.Invoke(UpdateStatusDelegate, False, "Updating " & UpdateFileList(i).Name & "...")
 
                 ' If an OLD file exists, delete it
                 If File.Exists(Path.Combine(NewRootFolder, OLD_PREFIX & UpdateFileList(i).Name)) Then
@@ -564,19 +548,7 @@ RevertToOldFileVersions:
 
                 NewRootFolder = GetNewRootFolder(RenameFileRecord.Name)
 
-                If RenameFileRecord.Name = EVE_IMAGES_ZIP Then
-                    ' Delete the new folder if the old one renamed
-                    If Directory.Exists(Path.Combine(NewRootFolder, OLD_PREFIX & EVEImagesNewLocalFolderName)) Then
-                        ' Delete it
-                        Directory.Delete(Path.Combine(NewRootFolder, OLD_PREFIX & EVEImagesNewLocalFolderName), True)
-                        Application.DoEvents()
-                    End If
-
-                    ' Rename the old zip folder
-                    Directory.Move(Path.Combine(NewRootFolder, EVEImagesLocalFolderName), Path.Combine(NewRootFolder, OLD_PREFIX & EVEImagesLocalFolderName))
-                    Application.DoEvents()
-
-                ElseIf RenameFileRecord.Name = EVE_DB Then
+                If RenameFileRecord.Name = EVE_DB Then
 
                     ' If an OLD file exists, delete new, rename old
                     If File.Exists(Path.Combine(NewRootFolder, OLD_PREFIX & EVE_DB)) Then
@@ -633,10 +605,7 @@ RevertToOldFileVersions:
         For i = 0 To UpdateFileList.Count - 1
             NewRootFolder = GetNewRootFolder(UpdateFileList(i).Name)
 
-            If UpdateFileList(i).Name = EVE_IMAGES_ZIP Then
-                ' Downloaded old folder
-                Directory.Delete(Path.Combine(NewRootFolder, OLD_PREFIX & EVEImagesLocalFolderName), True)
-            ElseIf UpdateFileList(i).Name = EVE_DB Then
+            If UpdateFileList(i).Name = EVE_DB Then
                 ' Delete old file
                 File.Delete(Path.Combine(NewRootFolder, OLD_PREFIX & EVE_DB))
             Else
@@ -721,7 +690,7 @@ RevertToOldFileVersions:
             ' Open new program if not in developer mode
             If Not Developer Then
                 Dim Proc As New Process
-                Proc.StartInfo.FileName = Path.Combine(ROOT_FOLDER, EVEIPH_EXE)
+                Proc.StartInfo.FileName = Path.Combine(ROOT_FOLDER, EASYIPH_EXE)
                 Proc.StartInfo.WindowStyle = ProcessWindowStyle.Normal
                 Proc.Start()
             End If
@@ -927,7 +896,7 @@ RevertToOldFileVersions:
 
     ' Writes a sent message to a log file
     Public Sub WriteMsgToLog(ByVal ErrorMsg As String)
-        Dim FilePath As String = Path.Combine(AppDataRoamingFolder, "EVEIPH.log")
+        Dim FilePath As String = Path.Combine(AppDataRoamingFolder, "EasyIPH.log")
         Dim AllText() As String
 
         ' Only write to log if there is an error to write
